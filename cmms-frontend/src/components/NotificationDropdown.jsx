@@ -1,10 +1,9 @@
 // src/components/NotificationDropdown.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { Bell, CalendarClock, ShieldCheck, Loader2, X, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const API_BASE_URL = 'http://localhost:5000/api';
 const NOTIFICATION_POLL_MS = 10000;
 
 export default function NotificationDropdown() {
@@ -18,7 +17,7 @@ export default function NotificationDropdown() {
   const fetchNotifications = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/dashboard/stats`);
+      const response = await api.get('/dashboard/stats');
       const data = response.data;
       
       const newNotifications = [];

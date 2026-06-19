@@ -1,14 +1,10 @@
 // src/pages/AssetTemplatePage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { FileWarning, Plus, Loader2, Trash2, ListPlus, Edit, Save } from 'lucide-react'; // Tambah Edit & Save
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import Modal from '../components/Modal.jsx';
-
-const API_BASE_URL = 'http://localhost:5000/api';
-const TEMPLATES_API = `${API_BASE_URL}/templates`;
-const INVENTORY_API = `${API_BASE_URL}/inventory/components`;
 
 // --- Komponen Form (digunakan untuk Create & Edit Template) ---
 function TemplateForm({ onSave, onClose, allComponents, initialData }) {
@@ -55,10 +51,10 @@ function TemplateForm({ onSave, onClose, allComponents, initialData }) {
             let response;
             if (isEditMode) {
                 // PATCH (Update)
-                response = await axios.patch(`${TEMPLATES_API}/${initialData.id}`, payload);
+                response = await api.patch(`/templates/${initialData.id}`, payload);
             } else {
                 // POST (Create)
-                response = await axios.post(TEMPLATES_API, payload);
+                response = await api.post('/templates', payload);
             }
             onSave(response.data); // Panggil callback
             onClose(); // Tutup modal
@@ -137,8 +133,8 @@ export default function AssetTemplatePage() {
             try {
                 // Ambil data template dan data komponen gudang secara bersamaan
                 const [templateRes, componentRes] = await Promise.all([
-                    axios.get(TEMPLATES_API),
-                    axios.get(INVENTORY_API)
+                    api.get('/templates'),
+                    api.get('/inventory/components')
                 ]);
                 setTemplates(templateRes.data);
                 setAllComponents(componentRes.data);
@@ -170,7 +166,7 @@ export default function AssetTemplatePage() {
         if (!window.confirm(`Yakin hapus template "${templateName}"?`)) return;
 
         try {
-            await axios.delete(`${TEMPLATES_API}/${templateId}`);
+            await api.delete(`/templates/${templateId}`);
             setTemplates(templates.filter(t => t.id !== templateId));
         } catch (err) {
             alert("Gagal menghapus template.");

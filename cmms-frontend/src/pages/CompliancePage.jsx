@@ -1,15 +1,11 @@
 // src/pages/CompliancePage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { FileWarning, CheckCircle, Clock, RefreshCw, AlertTriangle, ShieldCheck, Plus, Calendar } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import ComplianceForm from './ComplianceForm.jsx';
 import Modal from '../components/Modal.jsx'; // <-- Impor Modal
-
-const API_BASE_URL = 'http://localhost:5000/api';
-const LOGS_API = `${API_BASE_URL}/compliance/logs`;
-const ASSETS_API = `${API_BASE_URL}/assets`;
 
 export default function CompliancePage() {
   const [logs, setLogs] = useState([]);
@@ -25,8 +21,8 @@ export default function CompliancePage() {
     setError(null);
     try {
         const [logResponse, assetResponse] = await Promise.all([
-            axios.get(LOGS_API),
-            axios.get(ASSETS_API)
+            api.get('/compliance/logs'),
+            api.get('/assets')
         ]);
         
         setLogs(logResponse.data);
@@ -64,8 +60,8 @@ export default function CompliancePage() {
     ));
 
     try {
-        await axios.patch(`${LOGS_API}/${logId}`, { status: newStatus });
-        const updatedLogs = await axios.get(LOGS_API);
+        await api.patch(`/compliance/logs/${logId}`, { status: newStatus });
+        const updatedLogs = await api.get('/compliance/logs');
         setLogs(updatedLogs.data);
     } catch (err) {
         console.error("Gagal update status kepatuhan:", err);

@@ -1,12 +1,7 @@
 // src/context/AuthProvider.jsx
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { AuthContext } from './AuthContext'; // Import Context dari file terpisah
-// HAPUS BARIS INI: import { useAuth } from './useAuth'; 
-// -------------------------------------------------------------------
-
-// Definisikan API Login (Bisa diletakkan di file constants terpisah juga)
-const API_LOGIN_URL = 'http://localhost:5000/api/auth/login';
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 const IDLE_LOGOUT_MESSAGE_KEY = 'cmms_idle_logout_message';
 const ACTIVITY_EVENTS = [
@@ -32,16 +27,12 @@ export const AuthProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Efek samping untuk menyimpan state ke Local Storage dan mengatur header Axios
+    // Efek samping untuk menyimpan state ke Local Storage
     useEffect(() => {
         if (user) {
             localStorage.setItem('cmms_user', JSON.stringify(user));
-            // Konfigurasi Axios untuk menyertakan token di setiap permintaan
-            axios.defaults.headers.common['Authorization'] = `Bearer ${user.token}`;
         } else {
             localStorage.removeItem('cmms_user');
-            // Hapus token saat logout
-            delete axios.defaults.headers.common['Authorization'];
         }
     }, [user]);
 
@@ -51,7 +42,7 @@ export const AuthProvider = ({ children }) => {
         setError(null);
         sessionStorage.removeItem(IDLE_LOGOUT_MESSAGE_KEY);
         try {
-            const response = await axios.post(API_LOGIN_URL, { email, password });
+            const response = await api.post('/auth/login', { email, password });
             
             const userData = {
                 id: response.data.user_id,

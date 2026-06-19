@@ -1,6 +1,6 @@
 // src/pages/DashboardPage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import ErrorState from '../components/ErrorState.jsx';
 import { 
     Loader2, CheckCircle, Package, Activity, 
@@ -10,8 +10,6 @@ import StatusChart from '../components/StatusChart.jsx';
 import AssetWOChart from '../components/AssetWOChart.jsx';
 import { Link } from 'react-router-dom'; 
 import { useAuth } from '../context/useAuth.js';
-
-const API_BASE_URL = 'http://localhost:5000/api';
 
 // --- KOMPONEN STAT CARD ---
 const StatCard = ({ title, value, subtitle, icon, color, isLoading, linkTo, alert }) => (
@@ -80,9 +78,9 @@ export default function DashboardPage() {
       setError(null);
       try {
         const [statsResponse, allWosResponse, historyResponse] = await Promise.all([
-            axios.get(`${API_BASE_URL}/dashboard/stats`),
-            axios.get(`${API_BASE_URL}/workorders`), 
-            axios.get(`${API_BASE_URL}/workorders/history`),
+            api.get('/dashboard/stats'),
+            api.get('/workorders'),
+            api.get('/workorders/history'),
         ]);
         
         const allWOs = [...allWosResponse.data, ...historyResponse.data];

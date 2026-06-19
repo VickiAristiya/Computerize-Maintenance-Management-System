@@ -1,12 +1,11 @@
 // src/pages/RegisterPage.jsx
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../services/api';
 import { UserPlus, Mail, Lock, Loader2, User, Shield, ArrowLeft, CheckCircle } from 'lucide-react';
-import LogoImage from '../assets/logo.png'; 
+import LogoImage from '../assets/logo.png';
 
-const API_REGISTER_URL = 'http://localhost:5000/api/auth/register';
-const ROLES = ['manager', 'technician']; 
+const ROLES = ['manager', 'technician'];
 
 export default function RegisterPage() {
     const [name, setName] = useState('');
@@ -24,7 +23,7 @@ export default function RegisterPage() {
         setIsSubmitting(true);
 
         try {
-            const response = await axios.post(API_REGISTER_URL, { name, email, password, role });
+            const response = await api.post('/auth/register', { name, email, password, role });
             alert(`Registrasi berhasil! Role Anda: ${response.data.role.toUpperCase()}. Silakan Login.`);
             navigate('/login', { replace: true });
         } catch (err) {

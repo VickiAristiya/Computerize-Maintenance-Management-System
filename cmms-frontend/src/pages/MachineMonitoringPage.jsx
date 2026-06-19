@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { 
-    Activity, AlertTriangle, Power, Pause, Wrench, AlertOctagon, Zap, 
-    RefreshCw, Filter, Grid, List, Edit2, Check, X, Loader2 
+import api from '../services/api';
+import {
+    Activity, AlertTriangle, Power, Pause, Wrench, AlertOctagon, Zap,
+    RefreshCw, Filter, Grid, List, Edit2, Check, X, Loader2
 } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
-
-const API_BASE_URL = 'http://localhost:5000/api';
 
 // Status configuration
 const STATUS_CONFIG = {
@@ -276,7 +274,7 @@ export default function MachineMonitoringPage() {
         setLoading(true);
         setError(null);
         try {
-            const response = await axios.get(`${API_BASE_URL}/assets/monitoring/dashboard`);
+            const response = await api.get('/assets/monitoring/dashboard');
             setMachines(response.data.assets);
             setStatusSummary(response.data.status_summary);
         } catch (err) {
@@ -293,8 +291,8 @@ export default function MachineMonitoringPage() {
     const handleStatusChange = async (machineId, newStatus) => {
         setIsUpdating(machineId);
         try {
-            const response = await axios.patch(
-                `${API_BASE_URL}/assets/${machineId}/status`,
+            const response = await api.patch(
+                `/assets/${machineId}/status`,
                 { status: newStatus }
             );
             

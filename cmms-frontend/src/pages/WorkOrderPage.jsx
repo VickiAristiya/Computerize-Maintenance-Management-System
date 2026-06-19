@@ -1,14 +1,12 @@
 // src/pages/WorkOrderPage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { FileWarning, Play, Check, Trash2, Edit, Plus, HardDrive, Image as ImageIcon, X, ShieldCheck, User, ShieldAlert } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import WorkOrderForm from './WorkOrderForm.jsx';
 import Modal from '../components/Modal.jsx';
 import { useAuth } from '../context/useAuth.js';
-
-const API_BASE_URL = 'http://localhost:5000/api';
 
 export default function WorkOrderPage() {
   const { user, checkRole } = useAuth(); 
@@ -41,8 +39,8 @@ export default function WorkOrderPage() {
     setError(null);
     try {
       const [woResponse, assetResponse] = await Promise.all([
-        axios.get(`${API_BASE_URL}/workorders`),
-        axios.get(`${API_BASE_URL}/assets`)
+        api.get('/workorders'),
+        api.get('/assets')
       ]);
       setWorkOrders(woResponse.data);
       setAssets(assetResponse.data); 
@@ -73,7 +71,7 @@ export default function WorkOrderPage() {
   const handleDeleteWorkOrder = async (wo_id, title) => {
       if (!window.confirm(`Hapus Work Order: "${title}"?`)) return;
       try {
-          await axios.delete(`${API_BASE_URL}/workorders/${wo_id}`);
+          await api.delete(`/workorders/${wo_id}`);
           setWorkOrders(workOrders.filter(wo => wo.id !== wo_id));
       } catch (err) {
           console.error("Delete Error:", err);
@@ -85,8 +83,8 @@ export default function WorkOrderPage() {
   const handleApproveWorkOrder = async (wo_id) => {
       if(!window.confirm("Setujui Work Order ini agar bisa dikerjakan teknisi?")) return;
       try {
-        const response = await axios.patch(
-            `${API_BASE_URL}/workorders/${wo_id}`, 
+        const response = await api.patch(
+            `/workorders/${wo_id}`,
             { status: 'open' }
         );
         setWorkOrders(workOrders.map(wo => wo.id === wo_id ? response.data : wo));
@@ -100,9 +98,9 @@ export default function WorkOrderPage() {
   const handleStartWork = async (wo_id) => {
       try {
         // PERBAIKAN: Mengirim user.id saat mulai kerja
-        const response = await axios.patch(
-            `${API_BASE_URL}/workorders/${wo_id}`, 
-            { 
+        const response = await api.patch(
+            `/workorders/${wo_id}`,
+            {
                 status: 'in_progress',
                 assigned_to_id: user.id // Simpan teknisi
             }
@@ -126,9 +124,9 @@ export default function WorkOrderPage() {
 
       try {
           // PERBAIKAN: Mengirim user.id saat selesai kerja
-          const response = await axios.patch(
-             `${API_BASE_URL}/workorders/${woToComplete.id}`,
-             { 
+          const response = await api.patch(
+             `/workorders/${woToComplete.id}`,
+             {
                  status: 'pending_verification',
                  evidence_image: evidenceImage,
                  assigned_to_id: user.id // Update teknisi (jika belum terassign)
@@ -154,8 +152,8 @@ export default function WorkOrderPage() {
   const handleConfirmVerification = async () => {
       if (!woToVerify) return;
       try {
-          await axios.patch(
-              `${API_BASE_URL}/workorders/${woToVerify.id}`,
+          await api.patch(
+              `/workorders/${woToVerify.id}`,
               { status: 'completed' }
           );
           setWorkOrders(workOrders.filter(wo => wo.id !== woToVerify.id));
@@ -175,8 +173,8 @@ export default function WorkOrderPage() {
       }
       
       try {
-          const response = await axios.patch(
-              `${API_BASE_URL}/workorders/${woToVerify.id}/reject-verification`,
+          const response = await api.patch(
+              `/workorders/${woToVerify.id}/reject-verification`,
               {}
           );
           

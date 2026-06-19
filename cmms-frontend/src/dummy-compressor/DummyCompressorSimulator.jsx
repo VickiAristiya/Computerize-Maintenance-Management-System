@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import {
   Activity,
   AlertTriangle,
@@ -15,8 +15,6 @@ import {
   getTemplateData,
 } from './compressorSensorGenerator.js';
 import SensorInputModal from './SensorInputModal.jsx';
-
-const API_BASE_URL = 'http://localhost:5000/api';
 
 const RISK_OPTIONS = [
   { mode: 'maintenance_low', label: 'Rendah', className: 'border-yellow-200 bg-yellow-50 text-yellow-700' },
@@ -45,13 +43,13 @@ export default function DummyCompressorSimulator() {
 
     const ensureAsset = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/assets`);
+        const res = await api.get('/assets');
         const existing = res.data.find((a) => a.machine_id === DUMMY_COMPRESSOR.machine_id);
         if (existing) {
           if (isMounted) { setAsset(existing); setStatus('ready'); }
           return;
         }
-        const created = await axios.post(`${API_BASE_URL}/assets`, DUMMY_COMPRESSOR);
+        const created = await api.post('/assets', DUMMY_COMPRESSOR);
         if (isMounted) { setAsset(created.data); setStatus('ready'); }
       } catch {
         if (isMounted) setStatus('error');

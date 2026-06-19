@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -10,8 +10,6 @@ import {
   X,
 } from 'lucide-react';
 import { SENSOR_FIELD_GROUPS } from './compressorSensorGenerator.js';
-
-const API_BASE_URL = 'http://localhost:5000/api';
 
 const ALL_KEYS = SENSOR_FIELD_GROUPS.flatMap((g) => g.fields.map((f) => f.key));
 
@@ -94,7 +92,7 @@ export default function SensorInputModal({
         ...numeric,
       };
 
-      const response = await axios.post(`${API_BASE_URL}/ml/sensor-data`, payload);
+      const response = await api.post('/ml/sensor-data', payload);
       const pred = response.data.prediction;
       setPrediction(pred);
       if (onPredictionResult) onPredictionResult(pred);

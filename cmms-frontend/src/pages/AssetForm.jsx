@@ -1,13 +1,8 @@
 // src/pages/AssetForm.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { Plus, Loader2, Box, Hash, MapPin, List, Save, Image as ImageIcon, Activity } from 'lucide-react';
-import LoadingState from '../components/LoadingState.jsx'; 
-
-const API_BASE_URL = 'http://localhost:5000/api';
-const INVENTORY_API = `${API_BASE_URL}/inventory/components`;
-const ASSETS_API = `${API_BASE_URL}/assets`;
-const TEMPLATES_API = `${API_BASE_URL}/templates`;
+import LoadingState from '../components/LoadingState.jsx';
 
 export default function AssetForm({ onAssetCreated, initialData, onAssetUpdated, onClose }) {
   const isEditMode = !!initialData;
@@ -46,8 +41,8 @@ export default function AssetForm({ onAssetCreated, initialData, onAssetUpdated,
       setError(null);
       try {
         const [compRes, templateRes] = await Promise.all([
-          axios.get(INVENTORY_API),
-          axios.get(TEMPLATES_API)
+          api.get('/inventory/components'),
+          api.get('/templates')
         ]);
         setAllComponents(compRes.data);
         setAllTemplates(templateRes.data);
@@ -120,11 +115,11 @@ export default function AssetForm({ onAssetCreated, initialData, onAssetUpdated,
     try {
       let response;
       if (isEditMode) {
-        response = await axios.patch(`${ASSETS_API}/${initialData.id}`, assetData);
+        response = await api.patch(`/assets/${initialData.id}`, assetData);
         onAssetUpdated(response.data);
         onClose();
       } else {
-        response = await axios.post(ASSETS_API, assetData);
+        response = await api.post('/assets', assetData);
         onAssetCreated(response.data); 
         setSuccess(`Aset "${response.data.name}" berhasil disimpan.`);
         resetForm();

@@ -1,14 +1,12 @@
 // src/pages/ReportPage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { FileWarning, FileText, FileDown, BarChart2 } from 'lucide-react'; 
+import api, { BASE_URL } from '../services/api';
+import { FileWarning, FileText, FileDown, BarChart2 } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 
-const API_BASE_URL = 'http://localhost:5000/api';
-const REPORT_STATS_API = `${API_BASE_URL}/workorders/report/asset_stats`;
-const EXPORT_CSV_API = `${API_BASE_URL}/workorders/report/export/csv`; 
-const EXPORT_PDF_API = `${API_BASE_URL}/workorders/report/export/pdf`; 
+const EXPORT_CSV_API = `${BASE_URL}/workorders/report/export/csv`;
+const EXPORT_PDF_API = `${BASE_URL}/workorders/report/export/pdf`;
 
 export default function ReportPage() {
   const [reportData, setReportData] = useState([]);
@@ -21,7 +19,7 @@ export default function ReportPage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get(REPORT_STATS_API);
+        const response = await api.get('/workorders/report/asset_stats');
         setReportData(response.data); 
       } catch (err) {
         if (err.response) {

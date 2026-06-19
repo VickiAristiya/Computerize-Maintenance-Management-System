@@ -1,14 +1,11 @@
 // src/pages/AssetListPage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { FileWarning, PackagePlus, HardDrive, MapPin, Activity, Settings, Edit, Trash2, Image as ImageIcon, X } from 'lucide-react';
-import AssetForm from './AssetForm.jsx'; 
+import AssetForm from './AssetForm.jsx';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import Modal from '../components/Modal.jsx';
-
-const API_BASE_URL = 'http://localhost:5000/api';
-const ASSETS_API = `${API_BASE_URL}/assets`;
 
 export default function AssetListPage() {
   const [assets, setAssets] = useState([]);
@@ -26,7 +23,7 @@ export default function AssetListPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(ASSETS_API);
+      const response = await api.get('/assets');
       setAssets(response.data);
     } catch (err) {
       if (err.response) {
@@ -61,7 +58,7 @@ export default function AssetListPage() {
       if (!window.confirm(`Apakah Anda yakin ingin menghapus aset "${assetName}"?`)) return;
 
       try {
-          await axios.delete(`${ASSETS_API}/${assetId}`);
+          await api.delete(`/assets/${assetId}`);
           setAssets(assets.filter(a => a.id !== assetId));
       } catch (err) {
           alert("Gagal menghapus aset. Pastikan tidak ada Work Order yang terhubung.");

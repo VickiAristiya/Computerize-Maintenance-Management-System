@@ -1,10 +1,7 @@
 // src/pages/ComplianceForm.jsx
 import React, { useState } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { Plus, Loader2, Shield, Calendar } from 'lucide-react';
-
-const API_BASE_URL = 'http://localhost:5000/api';
-const LOGS_API = `${API_BASE_URL}/compliance/logs`;
 
 export default function ComplianceForm({ assets, onLogCreated }) {
   const [assetId, setAssetId] = useState('');
@@ -27,7 +24,7 @@ export default function ComplianceForm({ assets, onLogCreated }) {
     setError(null); setSuccess(null); setIsSubmitting(true);
 
     try {
-      const response = await axios.post(LOGS_API, {
+      const response = await api.post('/compliance/logs', {
         asset_id: assetId, regulation_name: regulationName, next_check_due: nextCheckDue, status: status,
       });
       onLogCreated(response.data); 

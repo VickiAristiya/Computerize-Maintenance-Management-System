@@ -1,13 +1,10 @@
 // src/pages/InventoryPage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { FileWarning, Plus, Loader2, Edit, Trash2, PackagePlus, Save, Box, MapPin, Tag } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import Modal from '../components/Modal.jsx';
-
-const API_BASE_URL = 'http://localhost:5000/api/inventory';
-const COMPONENTS_API = `${API_BASE_URL}/components`;
 
 // --- Komponen Form (digunakan untuk Create dan Edit) ---
 function InventoryForm({ onSave, initialData, onClose }) {
@@ -36,10 +33,10 @@ function InventoryForm({ onSave, initialData, onClose }) {
             let response;
             if (isEditMode) {
                 // PATCH (Update)
-                response = await axios.patch(`${COMPONENTS_API}/${initialData.id}`, payload);
+                response = await api.patch(`/inventory/components/${initialData.id}`, payload);
             } else {
                 // POST (Create)
-                response = await axios.post(COMPONENTS_API, payload);
+                response = await api.post('/inventory/components', payload);
             }
             onSave(response.data); // Panggil callback
             onClose(); // Tutup modal/form
@@ -105,7 +102,7 @@ export default function InventoryPage() {
             setLoading(true);
             setError(null);
             try {
-                const response = await axios.get(COMPONENTS_API);
+                const response = await api.get('/inventory/components');
                 setComponents(response.data);
             } catch (err) {
                 setError("Gagal memuat data inventaris.");
@@ -135,7 +132,7 @@ export default function InventoryPage() {
         if (!window.confirm(`Yakin hapus komponen "${componentName}" dari gudang?`)) return;
 
         try {
-            await axios.delete(`${COMPONENTS_API}/${componentId}`);
+            await api.delete(`/inventory/components/${componentId}`);
             setComponents(components.filter(c => c.id !== componentId));
         } catch (err) {
             alert("Gagal menghapus komponen.");

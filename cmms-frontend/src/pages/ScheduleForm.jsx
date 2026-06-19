@@ -1,10 +1,7 @@
 // src/pages/ScheduleForm.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { CalendarPlus, Loader2, Repeat, Calendar, Save } from 'lucide-react';
-
-const API_BASE_URL = 'http://localhost:5000/api';
-const SCHEDULES_API = `${API_BASE_URL}/schedules`;
 
 export default function ScheduleForm({ assets, onScheduleCreated, initialData, onScheduleUpdated, onClose }) {
   const isEditMode = !!initialData;
@@ -63,12 +60,12 @@ export default function ScheduleForm({ assets, onScheduleCreated, initialData, o
       let response;
       if (isEditMode) {
           // EDIT MODE
-          response = await axios.patch(`${SCHEDULES_API}/${initialData.id}`, payload);
+          response = await api.patch(`/schedules/${initialData.id}`, payload);
           if (onScheduleUpdated) onScheduleUpdated(response.data);
           if (onClose) onClose();
       } else {
           // CREATE MODE
-          response = await axios.post(SCHEDULES_API, payload);
+          response = await api.post('/schedules', payload);
           if (onScheduleCreated) onScheduleCreated(response.data);
           setSuccess(`Jadwal "${response.data.task_name}" berhasil dibuat.`);
           resetForm();

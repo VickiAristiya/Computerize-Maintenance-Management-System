@@ -1,13 +1,11 @@
 // src/pages/UserPage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { FileWarning, Plus, Loader2, UserPlus, Mail, Shield, User, Trash2, Edit, Lock } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import Modal from '../components/Modal.jsx'; 
 
-const API_BASE_URL = 'http://localhost:5000/api';
-const USERS_API = `${API_BASE_URL}/users`;
 const ROLES = ['admin', 'manager', 'technician'];
 
 // --- Komponen Form Pengguna Baru/Edit ---
@@ -42,12 +40,12 @@ function UserForm({ onUserCreated, initialData, onUserUpdated, onClose }) {
             let response;
             if (isEditMode) {
                 // PATCH (Update Role/Name/Password)
-                response = await axios.patch(`${USERS_API}/${initialData.id}`, userData);
+                response = await api.patch(`/users/${initialData.id}`, userData);
                 onUserUpdated(response.data); 
                 onClose(); 
             } else {
                 // POST (Create New User)
-                response = await axios.post(USERS_API, userData);
+                response = await api.post('/users', userData);
                 onUserCreated(response.data);
                 onClose(); // Tutup modal setelah create
             }
@@ -136,7 +134,7 @@ export default function UserPage() {
             setLoading(true);
             setError(null);
             try {
-                const response = await axios.get(USERS_API);
+                const response = await api.get('/users');
                 setUsers(response.data);
             } catch (err) {
                 if (err.request) {
@@ -176,7 +174,7 @@ export default function UserPage() {
         if (!window.confirm(`Yakin hapus pengguna "${userName}"?`)) return;
 
         try {
-            await axios.delete(`${USERS_API}/${userId}`);
+            await api.delete(`/users/${userId}`);
             setUsers(users.filter(u => u.id !== userId));
         } catch (err) {
             alert(`Gagal menghapus ${userName}. Cek konsol.`);

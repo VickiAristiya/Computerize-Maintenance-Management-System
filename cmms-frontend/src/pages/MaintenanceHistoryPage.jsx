@@ -1,6 +1,6 @@
 // src/pages/MaintenanceHistoryPage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api, { BASE_URL } from '../services/api';
 import {
     FileWarning, History, CalendarCheck, Wrench, HardDrive,
     Eye, X, User, CheckCircle2, AlertTriangle, Image as ImageIcon, FileText,
@@ -9,8 +9,6 @@ import {
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import Modal from '../components/Modal.jsx';
-
-const API_BASE_URL = 'http://localhost:5000/api';
 
 export default function MaintenanceHistoryPage() {
   const [history, setHistory] = useState([]);
@@ -29,7 +27,7 @@ export default function MaintenanceHistoryPage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get(`${API_BASE_URL}/workorders/history`);
+        const response = await api.get('/workorders/history');
         setHistory(response.data);
       } catch (err) {
         if (err.response) {
@@ -53,7 +51,7 @@ export default function MaintenanceHistoryPage() {
   };
 
   const handleExport = (format) => {
-    window.open(`${API_BASE_URL}/workorders/history/export/${format}`, '_blank');
+    window.open(`${BASE_URL}/workorders/history/export/${format}`, '_blank');
   };
 
   const formatDate = (isoString) => {

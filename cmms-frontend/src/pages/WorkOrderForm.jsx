@@ -1,10 +1,8 @@
 // src/pages/WorkOrderForm.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-import axios from 'axios';
-import { Plus, Loader2, Save, FileText, Settings, Image as ImageIcon } from 'lucide-react'; 
+import api from '../services/api';
+import { Plus, Loader2, Save, FileText, Settings, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../context/useAuth.js';
-
-const API_BASE_URL = 'http://localhost:5000/api';
 
 export default function WorkOrderForm({ assets, onWorkOrderCreated, initialData, onWOUpdated, onClose }) {
   const { user } = useAuth(); 
@@ -89,11 +87,11 @@ export default function WorkOrderForm({ assets, onWorkOrderCreated, initialData,
     try {
       let response;
       if (isEditMode) {
-        response = await axios.patch(`${API_BASE_URL}/workorders/${initialData.id}`, payload);
+        response = await api.patch(`/workorders/${initialData.id}`, payload);
         onWOUpdated(response.data); 
         onClose(); 
       } else {
-        response = await axios.post(`${API_BASE_URL}/workorders`, payload);
+        response = await api.post('/workorders', payload);
         onWorkOrderCreated(response.data); 
         setSuccess(`Work Order berhasil dibuat.`);
         setTitle(''); setDescription(''); setAssetId(''); setComponentId(''); setType('corrective'); setPriority('medium'); setInitialImage('');

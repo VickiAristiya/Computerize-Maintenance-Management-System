@@ -1,13 +1,11 @@
 // src/pages/SchedulePage.jsx
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { FileWarning, Trash2, CalendarPlus, Calendar, HardDrive, Repeat, Edit, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import ScheduleForm from './ScheduleForm.jsx';
 import Modal from '../components/Modal.jsx';
-
-const API_BASE_URL = 'http://localhost:5000/api';
 
 export default function SchedulePage() {
   const [schedules, setSchedules] = useState([]);
@@ -26,8 +24,8 @@ export default function SchedulePage() {
       setError(null);
       try {
         const [scheduleResponse, assetResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/schedules`),
-          axios.get(`${API_BASE_URL}/assets`)
+          api.get('/schedules'),
+          api.get('/assets')
         ]);
         
         setSchedules(scheduleResponse.data);
@@ -63,7 +61,7 @@ export default function SchedulePage() {
   const handleCompleteSchedule = async (scheduleId, taskName, frequencyDays) => {
     if (!window.confirm(`Tandai "${taskName}" sebagai selesai? Jadwal berikutnya akan diset ${frequencyDays} hari dari sekarang.`)) return;
     try {
-      const response = await axios.post(`${API_BASE_URL}/schedules/${scheduleId}/complete`);
+      const response = await api.post(`/schedules/${scheduleId}/complete`);
       setSchedules(schedules.map(s => s.id === scheduleId ? response.data : s).sort((a, b) => new Date(a.next_due_date) - new Date(b.next_due_date)));
     } catch (err) {
       alert("Gagal menyelesaikan jadwal.");
@@ -76,7 +74,7 @@ export default function SchedulePage() {
     }
 
     try {
-      await axios.delete(`${API_BASE_URL}/schedules/${scheduleId}`);
+      await api.delete(`/schedules/${scheduleId}`);
       setSchedules(schedules.filter(s => s.id !== scheduleId));
     } catch (err) {
       console.error("Gagal menghapus jadwal:", err);
