@@ -1,0 +1,34 @@
+# Python virtual environments
+venv/
+env/
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Node
+node_modules/
+dist/
+.cache/
+vite.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code settings (local only)
+.claude/
+
+# Dokumen non-kode
+Template_KTI_TA_final.docx
+data excell.xlsx
+*.xlsx
+*.docx

@@ -1,0 +1,17 @@
+{
+  "name": "Admin",
+  "email": "admin@cmms.com",
+  "password": "admin123"
+},
+{
+  "name": "John Technician",
+  "email": "john@cmms.com",
+  "password": "tech123456",
+  "role": "technician"
+},
+{
+  "name": "Sarah Manager",
+  "email": "sarah@cmms.com",
+  "password": "manager123456",
+  "role": "manager"
+}
