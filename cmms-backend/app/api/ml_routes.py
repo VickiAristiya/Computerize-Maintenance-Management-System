@@ -2,10 +2,12 @@
 from flask import Blueprint, jsonify, request
 
 from app.ml_service import CompressorPredictor, COMPONENTS
+from app.ml_registry import get_predictor
 from app.models import Asset, SensorData
 
 
 ml_bp = Blueprint("ml_bp", __name__)
+# Default predictor untuk endpoint yang tidak spesifik per-asset (compressor)
 predictor = CompressorPredictor()
 
 
@@ -66,20 +68,40 @@ def predict_compressor_payload():
 
 @ml_bp.route("/predict/<asset_id>", methods=["POST"])
 def predict_maintenance(asset_id):
-    """Prediksi compressor berdasarkan data sensor terbaru milik asset."""
+    """Prediksi berdasarkan data sensor terbaru milik asset (model dipilih dari registry)."""
     asset = Asset.objects(id=asset_id).first()
     if not asset:
         return _error_response("Asset not found", 404)
+
+    # Pilih predictor berdasarkan machine_id asset
+    asset_predictor = get_predictor(asset.machine_id)
+    if not asset_predictor:
+        return _error_response(
+            f"Mesin '{asset.machine_id}' belum memiliki model ML yang terdaftar.", 404
+        )
 
     latest_sensor = SensorData.objects(asset=asset).order_by("-timestamp").first()
     if not latest_sensor:
         return _error_response("No sensor data available for this asset", 404)
 
-    response, status_code = _run_prediction(_sensor_to_payload(latest_sensor))
-    if status_code != 200:
-        return response, status_code
+    # Bangun payload sesuai feature_columns predictor mesin ini
+    payload = {col: getattr(latest_sensor, col, None) for col in asset_predictor.feature_columns}
 
-    result = response.get_json()
+    try:
+        result = asset_predictor.predict(payload)
+    except FileNotFoundError as exc:
+        return _error_response(str(exc), 503)
+    except Exception as exc:
+        return _error_response(str(exc), 500)
+
+    if not result["ok"]:
+        return _error_response(
+            "Input fitur belum lengkap atau tidak valid", 400,
+            missing_features=result["missing_features"],
+            invalid_features=result["invalid_features"],
+            required_features=result["required_features"],
+        )
+
     result.update({
         "asset_id": str(asset.id),
         "asset_name": asset.name,
