@@ -215,9 +215,6 @@ export default function SensorInputModal({ isOpen, onClose, assetId, onPredictio
       const numeric = Object.fromEntries(ALL_KEYS.map(k => [k, parseFloat(formData[k])]));
       const payload = {
         asset_id:             assetId,
-        temperature:          numeric.outlet_temp,
-        vibration:            numeric.gaccz,
-        pressure:             numeric.outlet_pressure_bar,
         rpm:                  numeric.rpm,
         motor_power:          numeric.motor_power,
         noise_db:             numeric.noise_db,

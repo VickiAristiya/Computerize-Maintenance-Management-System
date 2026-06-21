@@ -153,9 +153,6 @@ def get_sensor_history(asset_id):
         "rpm", "motor_power", "noise_db", "outlet_pressure_bar",
         "air_flow", "outlet_temp", "wpump_outlet_press", "water_flow",
         "gaccz", "haccz",
-        "temperature", "vibration", "pressure", "current", "voltage",
-        "torque", "wpump_power", "water_inlet_temp", "water_outlet_temp",
-        "oilpump_power", "oil_tank_temp",
     ]
 
     history = []
