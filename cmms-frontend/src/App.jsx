@@ -17,6 +17,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import RegisterPage from './pages/RegisterPage.jsx';
 import InventoryPage from './pages/InventoryPage.jsx';
 import MachineMonitoringPage from './pages/MachineMonitoringPage.jsx';
+import SensorMonitoringPage from './pages/SensorMonitoringPage.jsx';
 // --- PERBAIKAN: Impor AssetTemplatePage yang hilang ---
 import AssetTemplatePage from './pages/AssetTemplatePage.jsx';
 
@@ -58,6 +59,7 @@ export default function App() {
         <Route path="schedules" element={<SchedulePage />} />
         <Route path="history" element={<MaintenanceHistoryPage />} />
         <Route path="monitoring" element={<ProtectedRoute roles={['admin', 'manager', 'technician']}><MachineMonitoringPage /></ProtectedRoute>} />
+        <Route path="monitoring/sensor/:assetId" element={<ProtectedRoute roles={['admin', 'manager', 'technician']}><SensorMonitoringPage /></ProtectedRoute>} />
         
         {/* Rute yang Terbatas Aksesnya */}
         <Route path="reports" element={<ProtectedRoute roles={['admin', 'manager']}><ReportPage /></ProtectedRoute>} />

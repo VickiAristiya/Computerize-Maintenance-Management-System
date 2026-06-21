@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { useNavigate } from 'react-router-dom';
 import {
     Activity, AlertTriangle, Power, Pause, Wrench, AlertOctagon, Zap,
-    RefreshCw, Filter, Grid, List, Edit2, Check, X, Loader2
+    RefreshCw, Filter, Grid, List, Edit2, Check, X, Loader2, LineChart,
 } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
@@ -28,6 +29,16 @@ const STATUS_CONFIG = {
         dotColor: '#3B82F6'
     },
     breakdown: {
+        label: 'Rusak',
+        color: 'bg-red-100',
+        textColor: 'text-red-700',
+        borderColor: 'border-red-300',
+        icon: AlertOctagon,
+        bgColor: '#FEE2E2',
+        dotColor: '#EF4444'
+    },
+    // 'down' adalah alias lama untuk breakdown
+    down: {
         label: 'Rusak',
         color: 'bg-red-100',
         textColor: 'text-red-700',
@@ -89,24 +100,24 @@ const StatCard = ({ status, count, color, icon: Icon }) => (
 );
 
 // --- MACHINE CARD (Grid View) ---
-const MachineCard = ({ machine, onStatusChange, isUpdating }) => {
+const MachineCard = ({ machine, onStatusChange, isUpdating, onSensorClick }) => {
     const config = STATUS_CONFIG[machine.status] || STATUS_CONFIG.running;
     const Icon = config.icon;
-    
+
     const [isEditing, setIsEditing] = useState(false);
     const [newStatus, setNewStatus] = useState(machine.status);
-    
+
     const handleStatusSubmit = async () => {
         await onStatusChange(machine.id, newStatus);
         setIsEditing(false);
     };
-    
+
     return (
         <div className={`bg-white rounded-xl border-2 ${config.borderColor} p-4 shadow-sm hover:shadow-lg transition-all duration-300`}>
             {/* Header dengan Status Dot */}
             <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
-                    <div 
+                    <div
                         className="w-4 h-4 rounded-full animate-pulse"
                         style={{ backgroundColor: config.dotColor }}
                     />
@@ -120,7 +131,7 @@ const MachineCard = ({ machine, onStatusChange, isUpdating }) => {
                     </div>
                 )}
             </div>
-            
+
             {/* Machine Image atau Placeholder */}
             <div className={`w-full h-40 rounded-lg mb-3 flex items-center justify-center ${config.color} border-2 ${config.borderColor}`}>
                 {machine.image ? (
@@ -129,35 +140,45 @@ const MachineCard = ({ machine, onStatusChange, isUpdating }) => {
                     <Icon size={48} style={{ color: config.dotColor }} opacity="0.5" />
                 )}
             </div>
-            
+
             {/* Machine Info */}
             <div className="mb-3">
                 <h3 className="font-bold text-slate-800 text-sm mb-0.5 line-clamp-1">{machine.name}</h3>
                 <p className="text-xs text-slate-500 mb-2">ID: {machine.machine_id}</p>
                 <p className="text-xs text-slate-600"><span className="font-semibold">Lokasi:</span> {machine.location || 'N/A'}</p>
             </div>
-            
+
+            {/* Tombol Sensor */}
+            {machine.has_sensor_data && (
+                <button
+                    onClick={() => onSensorClick(machine.id)}
+                    className="w-full mb-2 bg-emerald-600 text-white text-xs font-bold py-1.5 rounded hover:bg-emerald-700 flex items-center justify-center gap-1"
+                >
+                    <LineChart size={12} /> Monitoring Sensor
+                </button>
+            )}
+
             {/* Status Selector */}
             {isEditing ? (
                 <div className="mb-3 space-y-2">
-                    <select 
-                        value={newStatus} 
+                    <select
+                        value={newStatus}
                         onChange={(e) => setNewStatus(e.target.value)}
                         className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                        {Object.entries(STATUS_CONFIG).map(([key, val]) => (
+                        {Object.entries(STATUS_CONFIG).filter(([key]) => key !== 'down').map(([key, val]) => (
                             <option key={key} value={key}>{val.label}</option>
                         ))}
                     </select>
                     <div className="flex gap-1.5">
-                        <button 
+                        <button
                             onClick={handleStatusSubmit}
                             disabled={isUpdating}
                             className="flex-1 bg-green-600 text-white text-xs font-bold py-1.5 rounded hover:bg-green-700 disabled:bg-slate-300 flex items-center justify-center gap-1"
                         >
                             {isUpdating ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Simpan
                         </button>
-                        <button 
+                        <button
                             onClick={() => setIsEditing(false)}
                             className="flex-1 bg-slate-300 text-slate-700 text-xs font-bold py-1.5 rounded hover:bg-slate-400 flex items-center justify-center gap-1"
                         >
@@ -166,7 +187,7 @@ const MachineCard = ({ machine, onStatusChange, isUpdating }) => {
                     </div>
                 </div>
             ) : (
-                <button 
+                <button
                     onClick={() => setIsEditing(true)}
                     className="w-full bg-blue-600 text-white text-xs font-bold py-1.5 rounded hover:bg-blue-700 flex items-center justify-center gap-1"
                 >
@@ -178,7 +199,7 @@ const MachineCard = ({ machine, onStatusChange, isUpdating }) => {
 };
 
 // --- MACHINE ROW (List View) ---
-const MachineRow = ({ machine, onStatusChange, isUpdating }) => {
+const MachineRow = ({ machine, onStatusChange, isUpdating, onSensorClick }) => {
     const config = STATUS_CONFIG[machine.status] || STATUS_CONFIG.running;
     const Icon = config.icon;
     
@@ -222,39 +243,49 @@ const MachineRow = ({ machine, onStatusChange, isUpdating }) => {
                 )}
             </td>
             <td className="px-6 py-4">
-                {isEditing ? (
-                    <div className="flex gap-1.5">
-                        <select 
-                            value={newStatus} 
-                            onChange={(e) => setNewStatus(e.target.value)}
-                            className="px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <div className="flex items-center gap-2">
+                    {machine.has_sensor_data && (
+                        <button
+                            onClick={() => onSensorClick(machine.id)}
+                            className="bg-emerald-600 text-white px-3 py-1 text-xs font-bold rounded hover:bg-emerald-700 flex items-center gap-1"
                         >
-                            {Object.entries(STATUS_CONFIG).map(([key, val]) => (
-                                <option key={key} value={key}>{val.label}</option>
-                            ))}
-                        </select>
-                        <button 
-                            onClick={handleStatusSubmit}
-                            disabled={isUpdating}
-                            className="bg-green-600 text-white px-2 py-1 text-xs font-bold rounded hover:bg-green-700 disabled:bg-slate-300"
-                        >
-                            {isUpdating ? <Loader2 size={12} className="animate-spin inline" /> : 'Simpan'}
+                            <LineChart size={12} /> Sensor
                         </button>
-                        <button 
-                            onClick={() => setIsEditing(false)}
-                            className="bg-slate-300 text-slate-700 px-2 py-1 text-xs font-bold rounded hover:bg-slate-400"
+                    )}
+                    {isEditing ? (
+                        <div className="flex gap-1.5">
+                            <select
+                                value={newStatus}
+                                onChange={(e) => setNewStatus(e.target.value)}
+                                className="px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                {Object.entries(STATUS_CONFIG).filter(([key]) => key !== 'down').map(([key, val]) => (
+                                    <option key={key} value={key}>{val.label}</option>
+                                ))}
+                            </select>
+                            <button
+                                onClick={handleStatusSubmit}
+                                disabled={isUpdating}
+                                className="bg-green-600 text-white px-2 py-1 text-xs font-bold rounded hover:bg-green-700 disabled:bg-slate-300"
+                            >
+                                {isUpdating ? <Loader2 size={12} className="animate-spin inline" /> : 'Simpan'}
+                            </button>
+                            <button
+                                onClick={() => setIsEditing(false)}
+                                className="bg-slate-300 text-slate-700 px-2 py-1 text-xs font-bold rounded hover:bg-slate-400"
+                            >
+                                Batal
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => setIsEditing(true)}
+                            className="bg-blue-600 text-white px-3 py-1 text-xs font-bold rounded hover:bg-blue-700 flex items-center gap-1"
                         >
-                            Batal
+                            <Edit2 size={12} /> Edit
                         </button>
-                    </div>
-                ) : (
-                    <button 
-                        onClick={() => setIsEditing(true)}
-                        className="bg-blue-600 text-white px-3 py-1 text-xs font-bold rounded hover:bg-blue-700 flex items-center gap-1"
-                    >
-                        <Edit2 size={12} /> Edit
-                    </button>
-                )}
+                    )}
+                </div>
             </td>
         </tr>
     );
@@ -262,11 +293,12 @@ const MachineRow = ({ machine, onStatusChange, isUpdating }) => {
 
 // --- MAIN PAGE ---
 export default function MachineMonitoringPage() {
+    const navigate = useNavigate();
     const [machines, setMachines] = useState([]);
     const [statusSummary, setStatusSummary] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [viewMode, setViewMode] = useState('grid'); // grid atau list
+    const [viewMode, setViewMode] = useState('grid');
     const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
     const [isUpdating, setIsUpdating] = useState(null);
 
@@ -274,9 +306,25 @@ export default function MachineMonitoringPage() {
         setLoading(true);
         setError(null);
         try {
-            const response = await api.get('/assets/monitoring/dashboard');
-            setMachines(response.data.assets);
-            setStatusSummary(response.data.status_summary);
+            const [monRes, predRes] = await Promise.allSettled([
+                api.get('/assets/monitoring/dashboard'),
+                api.get('/ml/predictions'),
+            ]);
+
+            const assets = monRes.status === 'fulfilled' ? monRes.value.data.assets : [];
+            setStatusSummary(monRes.status === 'fulfilled' ? monRes.value.data.status_summary : {});
+
+            // Tandai mesin mana yang punya data sensor
+            const assetIdsWithSensor = new Set(
+                predRes.status === 'fulfilled'
+                    ? predRes.value.data.predictions.map(p => p.asset_id)
+                    : []
+            );
+
+            setMachines(assets.map(m => ({
+                ...m,
+                has_sensor_data: assetIdsWithSensor.has(m.id),
+            })));
         } catch (err) {
             console.error("Fetch Error:", err);
             setError(err.response?.data?.error || "Gagal memuat data monitoring.");
@@ -401,11 +449,12 @@ export default function MachineMonitoringPage() {
             ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredMachines.map(machine => (
-                        <MachineCard 
-                            key={machine.id} 
-                            machine={machine} 
+                        <MachineCard
+                            key={machine.id}
+                            machine={machine}
                             onStatusChange={handleStatusChange}
                             isUpdating={isUpdating === machine.id}
+                            onSensorClick={id => navigate(`/monitoring/sensor/${id}`)}
                         />
                     ))}
                 </div>
@@ -423,11 +472,12 @@ export default function MachineMonitoringPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {filteredMachines.map(machine => (
-                                <MachineRow 
-                                    key={machine.id} 
-                                    machine={machine} 
+                                <MachineRow
+                                    key={machine.id}
+                                    machine={machine}
                                     onStatusChange={handleStatusChange}
                                     isUpdating={isUpdating === machine.id}
+                                    onSensorClick={id => navigate(`/monitoring/sensor/${id}`)}
                                 />
                             ))}
                         </tbody>

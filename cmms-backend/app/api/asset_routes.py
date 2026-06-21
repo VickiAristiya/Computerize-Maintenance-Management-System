@@ -124,7 +124,8 @@ def get_machine_monitoring():
             'breakdown': 0,
             'off': 0,
             'maintenance': 0,
-            'warning': 0
+            'warning': 0,
+            'down': 0,
         }
         
         assets_with_details = []
@@ -169,7 +170,7 @@ def update_machine_status(asset_id):
         data = request.get_json()
         asset = Asset.objects.get(id=asset_id)
         
-        allowed_statuses = ['running', 'idle', 'breakdown', 'off', 'maintenance', 'warning']
+        allowed_statuses = ['running', 'idle', 'breakdown', 'off', 'maintenance', 'warning', 'down']
         new_status = data.get('status', '').lower()
         
         if new_status not in allowed_statuses:

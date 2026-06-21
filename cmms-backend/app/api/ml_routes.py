@@ -139,6 +139,52 @@ def get_all_predictions():
     }), 200
 
 
+@ml_bp.route("/sensor-history/<asset_id>", methods=["GET"])
+def get_sensor_history(asset_id):
+    """Riwayat data sensor untuk satu asset, diurutkan terbaru dulu."""
+    asset = Asset.objects(id=asset_id).first()
+    if not asset:
+        return _error_response("Asset not found", 404)
+
+    limit = min(int(request.args.get("limit", 50)), 200)
+    records = SensorData.objects(asset=asset).order_by("-timestamp").limit(limit)
+
+    SENSOR_FIELDS = [
+        "rpm", "motor_power", "noise_db", "outlet_pressure_bar",
+        "air_flow", "outlet_temp", "wpump_outlet_press", "water_flow",
+        "gaccz", "haccz",
+        "temperature", "vibration", "pressure", "current", "voltage",
+        "torque", "wpump_power", "water_inlet_temp", "water_outlet_temp",
+        "oilpump_power", "oil_tank_temp",
+    ]
+
+    history = []
+    available_fields = set()
+
+    for r in records:
+        row = {
+            "id": str(r.id),
+            "timestamp": r.timestamp.isoformat(),
+            "health_score": r.health_score,
+            "failure_probability": r.failure_probability,
+            "predicted_failure_days": r.predicted_failure_days,
+        }
+        for f in SENSOR_FIELDS:
+            val = getattr(r, f, None)
+            if val is not None:
+                row[f] = val
+                available_fields.add(f)
+        history.append(row)
+
+    return jsonify({
+        "asset_id": asset_id,
+        "asset_name": asset.name,
+        "total": len(history),
+        "available_fields": sorted(available_fields),
+        "history": history,
+    }), 200
+
+
 @ml_bp.route("/sensor-data", methods=["POST"])
 def add_sensor_data():
     """Simpan data sensor dan jalankan prediksi jika 20 fitur compressor lengkap."""

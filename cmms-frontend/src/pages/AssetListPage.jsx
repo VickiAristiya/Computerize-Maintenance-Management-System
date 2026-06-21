@@ -76,10 +76,14 @@ export default function AssetListPage() {
       setIsModalOpen(true);
   };
 
-  const getStatusClass = (status) => {
-    return status === 'running' 
-      ? 'bg-green-100 text-green-700 border-green-200' 
-      : 'bg-red-100 text-red-700 border-red-200';
+  const STATUS_CONFIG = {
+    running:     { label: 'Berjalan',    cls: 'bg-green-100 text-green-700 border-green-200' },
+    idle:        { label: 'Menganggur',  cls: 'bg-blue-100 text-blue-700 border-blue-200' },
+    breakdown:   { label: 'Rusak',       cls: 'bg-red-100 text-red-700 border-red-200' },
+    maintenance: { label: 'Perawatan',   cls: 'bg-amber-100 text-amber-700 border-amber-200' },
+    warning:     { label: 'Peringatan',  cls: 'bg-orange-100 text-orange-700 border-orange-200' },
+    off:         { label: 'Mati',        cls: 'bg-slate-100 text-slate-600 border-slate-200' },
+    down:        { label: 'Rusak',       cls: 'bg-red-100 text-red-700 border-red-200' },
   };
 
   if (error) {
@@ -174,9 +178,14 @@ export default function AssetListPage() {
                         {asset.location || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${getStatusClass(asset.status)}`}>
-                        {asset.status.toUpperCase()}
-                      </span>
+                      {(() => {
+                        const cfg = STATUS_CONFIG[asset.status] || STATUS_CONFIG.off;
+                        return (
+                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${cfg.cls}`}>
+                            {cfg.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     
                     {/* Tampilan Komponen */}

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
 import { Bell, CalendarClock, ShieldCheck, Loader2, X, AlertTriangle, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import MLNotificationDetailModal from './MLNotificationDetailModal';
 
 const RISK_BADGE = {
   critical: 'bg-rose-100 text-rose-700',
@@ -19,6 +20,7 @@ export default function NotificationDropdown() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedNotif, setSelectedNotif] = useState(null);
   const dropdownRef = useRef(null);
 
   // Fetch Data Notifikasi
@@ -73,6 +75,7 @@ export default function NotificationDropdown() {
                   id: pred.id,
                   type: 'predictive',
                   title: pred.title,
+                  asset_id: pred.asset_id,
                   asset_name: pred.asset_name,
                   message: pred.message,
                   recommendation: pred.recommendation,
@@ -128,6 +131,7 @@ export default function NotificationDropdown() {
   };
 
   return (
+    <>
     <div className="relative" ref={dropdownRef}>
       
       {/* Tombol Lonceng */}
@@ -168,86 +172,101 @@ export default function NotificationDropdown() {
                 </div>
             ) : (
                 <div className="divide-y divide-slate-50">
-                    {notifications.map((notif) => (
-                        <Link
-                            key={notif.id}
-                            to={notif.link}
-                            onClick={() => setIsOpen(false)}
-                            className="block p-4 hover:bg-slate-50 transition-colors"
-                        >
-                            <div className="flex gap-3">
-                                {/* Icon */}
-                                <div className={`shrink-0 mt-0.5 p-2 rounded-full ${
-                                    notif.type === 'verification' ? 'bg-purple-100 text-purple-600' :
-                                    notif.type === 'predictive' ? 'bg-red-100 text-red-600' :
-                                    'bg-blue-100 text-blue-600'
-                                }`}>
-                                    {notif.type === 'verification' ? <ShieldCheck size={14}/> :
-                                     notif.type === 'predictive' ? <Activity size={14}/> :
-                                     <CalendarClock size={14}/>}
-                                </div>
+                    {notifications.map((notif) => {
+                        const isPredictive = notif.type === 'predictive';
+                        const Wrapper = isPredictive ? 'div' : Link;
+                        const wrapperProps = isPredictive
+                            ? {
+                                role: 'button',
+                                tabIndex: 0,
+                                onClick: () => { setSelectedNotif(notif); setIsOpen(false); },
+                                onKeyDown: (e) => e.key === 'Enter' && (setSelectedNotif(notif), setIsOpen(false)),
+                              }
+                            : {
+                                to: notif.link,
+                                onClick: () => setIsOpen(false),
+                              };
 
-                                <div className="flex-1 min-w-0">
-                                    {/* Title + risk badge */}
-                                    <div className="flex items-start justify-between gap-2">
-                                        <p className={`text-xs font-bold leading-snug ${
-                                            notif.priority === 'critical' || notif.priority === 'high'
-                                                ? 'text-red-600' : 'text-slate-700'
-                                        }`}>
-                                            {notif.title}
-                                        </p>
-                                        {notif.type === 'predictive' && notif.risk_level && (
-                                            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${RISK_BADGE[notif.risk_level] || RISK_BADGE.very_low}`}>
-                                                {notif.risk_level}
-                                            </span>
-                                        )}
+                        return (
+                            <Wrapper
+                                key={notif.id}
+                                {...wrapperProps}
+                                className="block p-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                            >
+                                <div className="flex gap-3">
+                                    {/* Icon */}
+                                    <div className={`shrink-0 mt-0.5 p-2 rounded-full ${
+                                        notif.type === 'verification' ? 'bg-purple-100 text-purple-600' :
+                                        notif.type === 'predictive'   ? 'bg-red-100 text-red-600' :
+                                        'bg-blue-100 text-blue-600'
+                                    }`}>
+                                        {notif.type === 'verification' ? <ShieldCheck size={14}/> :
+                                         notif.type === 'predictive'   ? <Activity size={14}/> :
+                                         <CalendarClock size={14}/>}
                                     </div>
 
-                                    {/* Asset name */}
-                                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
-                                        {notif.asset_name || notif.message}
-                                    </p>
-
-                                    {/* Faulty component badges */}
-                                    {notif.type === 'predictive' && notif.faulty_components?.length > 0 && (
-                                        <div className="flex flex-wrap gap-1 mt-1.5">
-                                            {notif.faulty_components.map((c) => (
-                                                <span
-                                                    key={c.key}
-                                                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
-                                                        RISK_BADGE[c.risk_level] || RISK_BADGE.very_low
-                                                    }`}
-                                                >
-                                                    {c.label} · {c.prediction} · {Math.round((c.health_score ?? 0) * 100)}%
+                                    <div className="flex-1 min-w-0">
+                                        {/* Title + risk badge */}
+                                        <div className="flex items-start justify-between gap-2">
+                                            <p className={`text-xs font-bold leading-snug ${
+                                                notif.priority === 'critical' || notif.priority === 'high'
+                                                    ? 'text-red-600' : 'text-slate-700'
+                                            }`}>
+                                                {notif.title}
+                                            </p>
+                                            {isPredictive && notif.risk_level && (
+                                                <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${RISK_BADGE[notif.risk_level] || RISK_BADGE.very_low}`}>
+                                                    {notif.risk_level}
                                                 </span>
-                                            ))}
+                                            )}
                                         </div>
-                                    )}
 
-                                    {/* Aggregate recommendation */}
-                                    {notif.type === 'predictive' && notif.recommendation && (
-                                        <p className="text-[10px] text-slate-600 mt-1.5 leading-relaxed italic">
-                                            {notif.recommendation}
+                                        {/* Asset name */}
+                                        <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                            {notif.asset_name || notif.message}
                                         </p>
-                                    )}
 
-                                    {/* Schedule / verification message */}
-                                    {notif.type !== 'predictive' && (
-                                        <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
-                                            {notif.message}
+                                        {/* Faulty component badges */}
+                                        {isPredictive && notif.faulty_components?.length > 0 && (
+                                            <div className="flex flex-wrap gap-1 mt-1.5">
+                                                {notif.faulty_components.map((c) => (
+                                                    <span
+                                                        key={c.key}
+                                                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+                                                            RISK_BADGE[c.risk_level] || RISK_BADGE.very_low
+                                                        }`}
+                                                    >
+                                                        {c.label} · {c.prediction} · {Math.round((c.health_score ?? 0) * 100)}%
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Aggregate recommendation */}
+                                        {isPredictive && notif.recommendation && (
+                                            <p className="text-[10px] text-slate-600 mt-1.5 leading-relaxed italic">
+                                                {notif.recommendation}
+                                            </p>
+                                        )}
+
+                                        {/* Schedule / verification message */}
+                                        {!isPredictive && (
+                                            <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                                                {notif.message}
+                                            </p>
+                                        )}
+
+                                        {/* Footer */}
+                                        <p className="text-[10px] text-slate-400 mt-1">
+                                            {isPredictive && notif.predicted_days !== undefined
+                                                ? `Health ${Math.round((notif.overall_health_score ?? notif.health_score ?? 0) * 100)}% · ${notif.predicted_days === 0 ? 'Tindakan segera' : `${notif.predicted_days} hari lagi`} · Klik untuk detail`
+                                                : 'Klik untuk melihat detail'}
                                         </p>
-                                    )}
-
-                                    {/* Footer: health + due */}
-                                    <p className="text-[10px] text-slate-400 mt-1">
-                                        {notif.type === 'predictive' && notif.predicted_days !== undefined
-                                            ? `Health ${Math.round((notif.overall_health_score ?? notif.health_score ?? 0) * 100)}% · ${notif.predicted_days === 0 ? 'Tindakan segera' : `${notif.predicted_days} hari lagi`}`
-                                            : 'Klik untuk melihat detail'}
-                                    </p>
+                                    </div>
                                 </div>
-                            </div>
-                        </Link>
-                    ))}
+                            </Wrapper>
+                        );
+                    })}
                 </div>
             )}
           </div>
@@ -261,5 +280,14 @@ export default function NotificationDropdown() {
         </div>
       )}
     </div>
+
+    {/* Modal detail ML — render di luar dropdown agar tidak ter-clip */}
+    {selectedNotif && (
+      <MLNotificationDetailModal
+        notification={selectedNotif}
+        onClose={() => setSelectedNotif(null)}
+      />
+    )}
+    </>
   );
 }

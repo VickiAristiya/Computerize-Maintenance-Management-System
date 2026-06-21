@@ -188,20 +188,22 @@ export default function AssetForm({ onAssetCreated, initialData, onAssetUpdated,
           </div>
         </div>
 
-        {/* STATUS MESIN (FITUR BARU) */}
+        {/* STATUS MESIN */}
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">Status Mesin</label>
            <div className="relative">
-             <Activity size={16} className={`absolute left-3 top-1/2 -translate-y-1/2 ${status === 'running' ? 'text-green-500' : 'text-red-500'}`}/>
-             <select 
-                value={status} 
+             <Activity size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+             <select
+                value={status}
                 onChange={e => setStatus(e.target.value)}
-                className={`w-full pl-9 pr-3 py-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none font-medium ${
-                    status === 'running' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
-                }`}
+                className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none font-medium bg-white"
              >
-                 <option value="running">Running (Beroperasi)</option>
-                 <option value="down">Down (Rusak/Mati)</option>
+                 <option value="running">Berjalan (Running)</option>
+                 <option value="idle">Menganggur (Idle)</option>
+                 <option value="breakdown">Rusak (Breakdown)</option>
+                 <option value="maintenance">Perawatan (Maintenance)</option>
+                 <option value="warning">Peringatan (Warning)</option>
+                 <option value="off">Mati (Off)</option>
              </select>
           </div>
         </div>
