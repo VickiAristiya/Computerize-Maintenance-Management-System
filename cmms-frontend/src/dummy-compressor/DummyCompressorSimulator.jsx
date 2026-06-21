@@ -7,44 +7,26 @@ import {
   ClipboardList,
   Eye,
   Loader2,
-  Wrench,
   X,
 } from 'lucide-react';
-import {
-  DUMMY_COMPRESSOR,
-  getTemplateData,
-} from './compressorSensorGenerator.js';
+import { DUMMY_COMPRESSOR } from './compressorSensorGenerator.js';
 import SensorInputModal from './SensorInputModal.jsx';
 
-const RISK_OPTIONS = [
-  { mode: 'maintenance_low', label: 'Rendah', className: 'border-yellow-200 bg-yellow-50 text-yellow-700' },
-  { mode: 'maintenance_medium', label: 'Sedang', className: 'border-orange-200 bg-orange-50 text-orange-700' },
-  { mode: 'maintenance_high', label: 'Tinggi', className: 'border-red-200 bg-red-50 text-red-700' },
-  { mode: 'maintenance_critical', label: 'Kritis', className: 'border-rose-300 bg-rose-50 text-rose-700' },
-];
-
 export default function DummyCompressorSimulator() {
-  const [asset, setAsset] = useState(null);
+  const [asset, setAsset]           = useState(null);
   const [prediction, setPrediction] = useState(null);
-  const [status, setStatus] = useState('starting');
-  const [showMaintenance, setShowMaintenance] = useState(false);
-  const [isHidden, setIsHidden] = useState(
+  const [status, setStatus]         = useState('starting');
+  const [modalOpen, setModalOpen]   = useState(false);
+  const [isHidden, setIsHidden]     = useState(
     () => localStorage.getItem('dummyCompressorWidgetHidden') === 'true'
   );
-  const [modal, setModal] = useState({
-    open: false,
-    mode: null,
-    modeLabel: null,
-    initialData: null,
-  });
 
   useEffect(() => {
     let isMounted = true;
-
     const ensureAsset = async () => {
       try {
         const res = await api.get('/assets');
-        const existing = res.data.find((a) => a.machine_id === DUMMY_COMPRESSOR.machine_id);
+        const existing = res.data.find(a => a.machine_id === DUMMY_COMPRESSOR.machine_id);
         if (existing) {
           if (isMounted) { setAsset(existing); setStatus('ready'); }
           return;
@@ -55,44 +37,22 @@ export default function DummyCompressorSimulator() {
         if (isMounted) setStatus('error');
       }
     };
-
     ensureAsset();
     return () => { isMounted = false; };
   }, []);
 
-  const openModal = (mode, modeLabel, useTemplate) => {
-    setModal({
-      open: true,
-      mode,
-      modeLabel,
-      initialData: useTemplate ? getTemplateData(mode) : null,
-    });
-    setShowMaintenance(false);
-  };
-
-  const closeModal = () => setModal((prev) => ({ ...prev, open: false }));
-
-  const hideWidget = () => {
-    localStorage.setItem('dummyCompressorWidgetHidden', 'true');
-    setIsHidden(true);
-  };
-
-  const showWidget = () => {
-    localStorage.setItem('dummyCompressorWidgetHidden', 'false');
-    setIsHidden(false);
-  };
-
-  const isFault = prediction?.prediction === 'Noisy' || prediction?.risk_level === 'critical';
+  const isFault   = prediction?.overall_health_score < 0.7
+                 || prediction?.risk_level === 'critical'
+                 || prediction?.risk_level === 'high';
   const isLoading = status === 'starting';
-  const Icon = isLoading ? Loader2 : isFault ? AlertTriangle : CheckCircle2;
+  const Icon      = isLoading ? Loader2 : isFault ? AlertTriangle : CheckCircle2;
 
   if (isHidden) {
     return (
       <button
         type="button"
-        onClick={showWidget}
+        onClick={() => { localStorage.setItem('dummyCompressorWidgetHidden', 'false'); setIsHidden(false); }}
         className="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 shadow-lg transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-        title="Tampilkan widget prediktif"
       >
         <Eye size={15} />
         Prediktif
@@ -102,7 +62,7 @@ export default function DummyCompressorSimulator() {
 
   return (
     <>
-      <div className="fixed bottom-4 right-4 z-40 w-80 rounded-lg border border-slate-200 bg-white shadow-lg">
+      <div className="fixed bottom-4 right-4 z-40 w-72 rounded-lg border border-slate-200 bg-white shadow-lg">
 
         {/* Header */}
         <div className="flex items-center gap-3 p-3">
@@ -120,83 +80,40 @@ export default function DummyCompressorSimulator() {
               {status === 'error'
                 ? 'Gagal terhubung ke server'
                 : prediction
-                  ? `${prediction.prediction} | Risiko ${prediction.risk_level} | ${Math.round(prediction.failure_probability * 100)}%`
+                  ? `Health ${Math.round((prediction.overall_health_score ?? 0) * 100)}% | ${prediction.risk_level}`
                   : status === 'starting'
                     ? 'Menyiapkan aset...'
-                    : 'Pilih mode untuk input data sensor'}
+                    : 'Siap menerima data sensor'}
             </p>
           </div>
           <button
             type="button"
-            onClick={hideWidget}
+            onClick={() => { localStorage.setItem('dummyCompressorWidgetHidden', 'true'); setIsHidden(true); }}
             className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-            title="Sembunyikan widget"
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* Mode buttons */}
-        <div className="flex items-center gap-1.5 border-t border-slate-100 px-3 pb-3 pt-2">
+        {/* Tombol input */}
+        <div className="border-t border-slate-100 px-3 pb-3 pt-2">
           <button
             type="button"
-            onClick={() => { openModal('normal', 'Mode Normal', true); setShowMaintenance(false); }}
-            className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-600 transition hover:border-green-200 hover:bg-green-50 hover:text-green-700"
-            title="Input data sensor kondisi normal"
+            disabled={status !== 'ready'}
+            onClick={() => setModalOpen(true)}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700 disabled:opacity-40"
           >
-            <CheckCircle2 size={13} />
-            Normal
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowMaintenance((prev) => !prev)}
-            className={`inline-flex flex-1 items-center justify-center gap-1 rounded-md border px-2 py-1.5 text-xs font-bold transition ${
-              showMaintenance
-                ? 'border-red-200 bg-red-50 text-red-700'
-                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-            }`}
-            title="Input data sensor kondisi maintenance"
-          >
-            <Wrench size={13} />
-            Maintenance
-          </button>
-          <button
-            type="button"
-            onClick={() => { openModal('manual', 'Input Manual', false); setShowMaintenance(false); }}
-            className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs font-bold text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
-            title="Input data sensor secara manual tanpa template"
-          >
-            <ClipboardList size={13} />
-            Manual
+            <ClipboardList size={14} />
+            Input Data Sensor
           </button>
         </div>
-
-        {/* Maintenance risk sub-options */}
-        {showMaintenance && (
-          <div className="grid grid-cols-4 gap-1.5 border-t border-slate-100 px-3 pb-3 pt-2">
-            {RISK_OPTIONS.map((opt) => (
-              <button
-                key={opt.mode}
-                type="button"
-                onClick={() => openModal(opt.mode, `Maintenance ${opt.label}`, true)}
-                className={`rounded-md border px-1.5 py-1 text-[11px] font-bold transition hover:opacity-80 ${opt.className}`}
-                title={`Input data sensor maintenance risiko ${opt.label.toLowerCase()}`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       <SensorInputModal
-        isOpen={modal.open}
-        onClose={closeModal}
-        initialData={modal.initialData}
-        mode={modal.mode}
-        modeLabel={modal.modeLabel}
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
         assetId={asset?.id}
-        onPredictionResult={(pred) => setPrediction(pred)}
+        onPredictionResult={pred => setPrediction(pred)}
       />
     </>
   );

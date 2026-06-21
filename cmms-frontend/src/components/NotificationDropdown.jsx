@@ -1,8 +1,16 @@
 // src/components/NotificationDropdown.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
-import { Bell, CalendarClock, ShieldCheck, Loader2, X, AlertTriangle } from 'lucide-react';
+import { Bell, CalendarClock, ShieldCheck, Loader2, X, AlertTriangle, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+const RISK_BADGE = {
+  critical: 'bg-rose-100 text-rose-700',
+  high:     'bg-red-100 text-red-700',
+  medium:   'bg-orange-100 text-orange-700',
+  low:      'bg-yellow-100 text-yellow-700',
+  very_low: 'bg-green-100 text-green-700',
+};
 
 const NOTIFICATION_POLL_MS = 10000;
 
@@ -65,14 +73,18 @@ export default function NotificationDropdown() {
                   id: pred.id,
                   type: 'predictive',
                   title: pred.title,
-                  message: `${pred.asset_name}: ${pred.message}`,
+                  asset_name: pred.asset_name,
+                  message: pred.message,
+                  recommendation: pred.recommendation,
                   link: pred.link,
-                  priority: pred.priority === 'critical' ? 'high' : pred.priority,
+                  priority: pred.priority,
                   date: pred.due_date,
                   predicted_days: pred.predicted_days,
                   failure_probability: pred.failure_probability,
                   health_score: pred.health_score,
-                  risk_level: pred.risk_level
+                  overall_health_score: pred.overall_health_score,
+                  risk_level: pred.risk_level,
+                  faulty_components: pred.faulty_components,
               });
           });
       }
@@ -157,35 +169,80 @@ export default function NotificationDropdown() {
             ) : (
                 <div className="divide-y divide-slate-50">
                     {notifications.map((notif) => (
-                        <Link 
-                            key={notif.id} 
-                            to={notif.link} 
+                        <Link
+                            key={notif.id}
+                            to={notif.link}
                             onClick={() => setIsOpen(false)}
                             className="block p-4 hover:bg-slate-50 transition-colors"
                         >
                             <div className="flex gap-3">
-                                <div className={`shrink-0 mt-1 p-2 rounded-full ${
-                                    notif.type === 'verification' ? 'bg-purple-100 text-purple-600' : 
+                                {/* Icon */}
+                                <div className={`shrink-0 mt-0.5 p-2 rounded-full ${
+                                    notif.type === 'verification' ? 'bg-purple-100 text-purple-600' :
                                     notif.type === 'predictive' ? 'bg-red-100 text-red-600' :
                                     'bg-blue-100 text-blue-600'
                                 }`}>
-                                    {notif.type === 'verification' ? <ShieldCheck size={16}/> : 
-                                     notif.type === 'predictive' ? <AlertTriangle size={16}/> :
-                                     <CalendarClock size={16}/>}
+                                    {notif.type === 'verification' ? <ShieldCheck size={14}/> :
+                                     notif.type === 'predictive' ? <Activity size={14}/> :
+                                     <CalendarClock size={14}/>}
                                 </div>
-                                <div>
-                                    <p className={`text-sm font-bold ${
-                                        notif.priority === 'high' ? 'text-red-600' : 'text-slate-700'
-                                    }`}>
-                                        {notif.title}
+
+                                <div className="flex-1 min-w-0">
+                                    {/* Title + risk badge */}
+                                    <div className="flex items-start justify-between gap-2">
+                                        <p className={`text-xs font-bold leading-snug ${
+                                            notif.priority === 'critical' || notif.priority === 'high'
+                                                ? 'text-red-600' : 'text-slate-700'
+                                        }`}>
+                                            {notif.title}
+                                        </p>
+                                        {notif.type === 'predictive' && notif.risk_level && (
+                                            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded ${RISK_BADGE[notif.risk_level] || RISK_BADGE.very_low}`}>
+                                                {notif.risk_level}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Asset name */}
+                                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                                        {notif.asset_name || notif.message}
                                     </p>
-                                    <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-                                        {notif.message}
-                                    </p>
+
+                                    {/* Faulty component badges */}
+                                    {notif.type === 'predictive' && notif.faulty_components?.length > 0 && (
+                                        <div className="flex flex-wrap gap-1 mt-1.5">
+                                            {notif.faulty_components.map((c) => (
+                                                <span
+                                                    key={c.key}
+                                                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+                                                        RISK_BADGE[c.risk_level] || RISK_BADGE.very_low
+                                                    }`}
+                                                >
+                                                    {c.label} · {c.prediction} · {Math.round((c.health_score ?? 0) * 100)}%
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Aggregate recommendation */}
+                                    {notif.type === 'predictive' && notif.recommendation && (
+                                        <p className="text-[10px] text-slate-600 mt-1.5 leading-relaxed italic">
+                                            {notif.recommendation}
+                                        </p>
+                                    )}
+
+                                    {/* Schedule / verification message */}
+                                    {notif.type !== 'predictive' && (
+                                        <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                                            {notif.message}
+                                        </p>
+                                    )}
+
+                                    {/* Footer: health + due */}
                                     <p className="text-[10px] text-slate-400 mt-1">
                                         {notif.type === 'predictive' && notif.predicted_days !== undefined
-                                          ? `Risiko ${notif.risk_level || '-'} | Estimasi tindakan: ${notif.predicted_days === 0 ? 'segera' : `${notif.predicted_days} hari lagi`}`
-                                          : 'Klik untuk melihat detail'}
+                                            ? `Health ${Math.round((notif.overall_health_score ?? notif.health_score ?? 0) * 100)}% · ${notif.predicted_days === 0 ? 'Tindakan segera' : `${notif.predicted_days} hari lagi`}`
+                                            : 'Klik untuk melihat detail'}
                                     </p>
                                 </div>
                             </div>

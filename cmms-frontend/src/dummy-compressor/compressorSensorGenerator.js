@@ -1,167 +1,159 @@
-const OK_SAMPLE = {
-  rpm: 499,
-  motor_power: 1405.842858,
-  torque: 27.51170834,
-  outlet_pressure_bar: 1,
-  air_flow: 308.2898788,
-  noise_db: 40.84051681,
-  outlet_temp: 78.55471462,
-  wpump_outlet_press: 2.960632487,
-  water_inlet_temp: 43.16639156,
-  water_outlet_temp: 47.25923766,
-  wpump_power: 216.6105061,
-  water_flow: 59.0850591,
-  oilpump_power: 300.3729213,
-  oil_tank_temp: 45.80617755,
-  gaccx: 0.711820164,
-  gaccy: 0.383772955,
-  gaccz: 2.649800567,
-  haccx: 1.213344407,
-  haccy: 1.409218131,
-  haccz: 2.962483674,
-};
+/**
+ * Template nilai sensor berdasarkan hasil eksplorasi model ML.
+ * Setiap template dipilih dari sampel dataset/random yang menghasilkan
+ * fault probability tinggi pada komponen target dan rendah pada komponen lain.
+ */
 
-const NOISY_SAMPLE = {
-  rpm: 500,
-  motor_power: 1402.424603,
-  torque: 26.91957192,
-  outlet_pressure_bar: 1,
-  air_flow: 308.2705663,
-  noise_db: 45.46106943,
-  outlet_temp: 78.29331063,
-  wpump_outlet_press: 2.331081334,
-  water_inlet_temp: 43.78669864,
-  water_outlet_temp: 48.32915461,
-  wpump_power: 215.7832218,
-  water_flow: 59.17499154,
-  oilpump_power: 300.9885927,
-  oil_tank_temp: 45.87909428,
-  gaccx: 0.70000561,
-  gaccy: 0.389492342,
-  gaccz: 2.644748976,
-  haccx: 1.209735291,
-  haccy: 1.439140959,
-  haccz: 2.974438125,
-};
-
-const randomBetween = (min, max) => min + Math.random() * (max - min);
-
-const DEMO_STAGES = [
-  { ratio: 0.45, label: "Normal", expectedRisk: "< 10%", expectedAction: "90 hari" },
-  { ratio: 0.54361, label: "Risiko rendah", expectedRisk: "10-29%", expectedAction: "60 hari" },
-  { ratio: 0.57462, label: "Risiko sedang", expectedRisk: "30-49%", expectedAction: "30 hari" },
-  { ratio: 0.61334, label: "Risiko tinggi", expectedRisk: "50-79%", expectedAction: "7 hari" },
-  { ratio: 0.65037, label: "Kritis", expectedRisk: ">= 80%", expectedAction: "segera" },
+export const SENSOR_TEMPLATES = [
+  {
+    id: "manual",
+    label: "Input Manual",
+    description: "Isi nilai sensor secara manual",
+    icon: "pencil",
+    color: "slate",
+    data: null, // null = form kosong
+  },
+  {
+    id: "normal",
+    label: "Normal — Semua OK",
+    description: "Semua komponen dalam kondisi baik (Ok P50 dataset)",
+    icon: "check",
+    color: "green",
+    data: {
+      rpm: 1500.0, motor_power: 5874.43, noise_db: 51.51,
+      outlet_pressure_bar: 4.018, air_flow: 600.15, outlet_temp: 119.37,
+      wpump_outlet_press: 2.80, water_flow: 55.81, gaccz: 3.59, haccz: 3.32,
+    },
+  },
+  {
+    id: "bearing_fault",
+    label: "Bearing Fault",
+    description: "Bearing Noisy — noise_db tinggi + air_flow tinggi",
+    icon: "alert",
+    color: "purple",
+    // Dari eksplorasi: BRG FP=100%, WPU<1%, RAD<1%, EXV<1%
+    data: {
+      rpm: 2003.0, motor_power: 10768.67, noise_db: 63.31,
+      outlet_pressure_bar: 4.92, air_flow: 1198.22, outlet_temp: 125.49,
+      wpump_outlet_press: 2.39, water_flow: 58.30, gaccz: 4.15, haccz: 3.55,
+    },
+  },
+  {
+    id: "wpump_fault",
+    label: "Water Pump Fault",
+    description: "Water Pump Noisy — air_flow & outlet_temp tinggi",
+    icon: "alert",
+    color: "blue",
+    // Dari eksplorasi: BRG<1%, WPU FP=99.7%, RAD<1%, EXV<1%
+    data: {
+      rpm: 1517.0, motor_power: 11001.14, noise_db: 56.11,
+      outlet_pressure_bar: 6.66, air_flow: 883.37, outlet_temp: 138.26,
+      wpump_outlet_press: 2.89, water_flow: 50.51, gaccz: 6.23, haccz: 4.63,
+    },
+  },
+  {
+    id: "radiator_fault",
+    label: "Radiator Fault",
+    description: "Radiator Dirty — water_flow sangat rendah",
+    icon: "alert",
+    color: "green",
+    // Dari eksplorasi: BRG<1%, WPU<1%, RAD FP=100%, EXV<1%
+    data: {
+      rpm: 1503.0, motor_power: 2634.21, noise_db: 50.48,
+      outlet_pressure_bar: 1.15, air_flow: 803.44, outlet_temp: 110.18,
+      wpump_outlet_press: 2.28, water_flow: 41.20, gaccz: 1.91, haccz: 2.50,
+    },
+  },
+  {
+    id: "exvalve_fault",
+    label: "Exhaust Valve Fault",
+    description: "Exhaust Valve Dirty — air_flow rendah + rpm tinggi",
+    icon: "alert",
+    color: "orange",
+    // Dari eksplorasi: BRG<1%, WPU<1%, RAD<1%, EXV FP=100%
+    data: {
+      rpm: 2496.0, motor_power: 7509.70, noise_db: 61.87,
+      outlet_pressure_bar: 2.65, air_flow: 492.45, outlet_temp: 123.18,
+      wpump_outlet_press: 2.56, water_flow: 58.13, gaccz: 2.35, haccz: 2.66,
+    },
+  },
+  {
+    id: "bearing_wpump_fault",
+    label: "Bearing + Water Pump Fault",
+    description: "2 komponen fault — noise tinggi + air_flow sangat tinggi",
+    icon: "alert",
+    color: "red",
+    // Dari eksplorasi: BRG FP=100%, WPU FP=99%, RAD~26%, EXV<1%
+    data: {
+      rpm: 707.6, motor_power: 9250.9, noise_db: 55.5,
+      outlet_pressure_bar: 8.3, air_flow: 1360.5, outlet_temp: 102.1,
+      wpump_outlet_press: 3.07, water_flow: 42.25, gaccz: 8.56, haccz: 5.62,
+    },
+  },
+  {
+    id: "radiator_exvalve_fault",
+    label: "Radiator + Exhaust Valve Fault",
+    description: "2 komponen fault — air_flow sangat rendah + rpm sangat tinggi",
+    icon: "alert",
+    color: "red",
+    // Dari eksplorasi: BRG~20%, WPU<1%, RAD FP=54%, EXV FP=100%
+    data: {
+      rpm: 2515.0, motor_power: 10600.5, noise_db: 43.0,
+      outlet_pressure_bar: 1.36, air_flow: 253.5, outlet_temp: 137.0,
+      wpump_outlet_press: 3.78, water_flow: 47.27, gaccz: 2.21, haccz: 3.77,
+    },
+  },
+  {
+    id: "bearing_radiator_fault",
+    label: "Bearing + Radiator Fault",
+    description: "2 komponen fault — noise tinggi + water_flow rendah",
+    icon: "alert",
+    color: "red",
+    // Dari eksplorasi: BRG FP=82%, WPU<1%, RAD FP=100%, EXV<1%
+    data: {
+      rpm: 929.7, motor_power: 12039.9, noise_db: 67.8,
+      outlet_pressure_bar: 1.0, air_flow: 1259.4, outlet_temp: 111.5,
+      wpump_outlet_press: 2.95, water_flow: 41.86, gaccz: 7.45, haccz: 5.42,
+    },
+  },
 ];
-
-const SENSOR_MODES = {
-  normal: [DEMO_STAGES[0]],
-  maintenance_low: [DEMO_STAGES[1]],
-  maintenance_medium: [DEMO_STAGES[2]],
-  maintenance_high: [DEMO_STAGES[3]],
-  maintenance_critical: [DEMO_STAGES[4]],
-};
-
-const blend = (from, to, ratio, addNoise = false) => {
-  const blended = {};
-  Object.keys(from).forEach((key) => {
-    const value = from[key] + (to[key] - from[key]) * ratio;
-    const noise = addNoise ? Math.abs(value) * randomBetween(-0.001, 0.001) : 0;
-    blended[key] = Number((value + noise).toFixed(6));
-  });
-  return blended;
-};
-
-export function generateCompressorSensorPayload(assetId, tick, mode = "normal") {
-  const stages = SENSOR_MODES[mode] || SENSOR_MODES.normal;
-  const stage = stages[Math.floor(tick / 2) % stages.length];
-  const ratio = stage.ratio;
-  const blended = blend(OK_SAMPLE, NOISY_SAMPLE, ratio, true);
-
-  return {
-    asset_id: assetId,
-    demo_mode: mode,
-    demo_stage: stage.label,
-    demo_expected_risk: stage.expectedRisk,
-    demo_expected_action: stage.expectedAction,
-    temperature: Number(blended.outlet_temp.toFixed(2)),
-    vibration: Number(blended.gaccz.toFixed(3)),
-    pressure: Number(blended.outlet_pressure_bar.toFixed(3)),
-    current: Number(randomBetween(13.5, 16.5).toFixed(2)),
-    voltage: Number(randomBetween(392, 406).toFixed(2)),
-    ...blended,
-  };
-}
-
-export const DUMMY_COMPRESSOR = {
-  name: "Dummy Compressor Bearing Test Rig",
-  machine_id: "CMP-DUMMY-001",
-  location: "Area Produksi - Simulasi ML",
-  status: "running",
-};
-
-export function getTemplateData(mode) {
-  const stages = SENSOR_MODES[mode] || SENSOR_MODES.normal;
-  const stage = stages[0];
-  const blended = blend(OK_SAMPLE, NOISY_SAMPLE, stage.ratio, false);
-  return {
-    ...blended,
-    current: 15.0,
-    voltage: 399.0,
-  };
-}
 
 export const SENSOR_FIELD_GROUPS = [
   {
     group: 'Motor & Drive',
     fields: [
-      { key: 'rpm', label: 'RPM', unit: 'RPM' },
-      { key: 'motor_power', label: 'Motor Power', unit: 'W' },
-      { key: 'torque', label: 'Torque', unit: 'Nm' },
-      { key: 'current', label: 'Arus', unit: 'A' },
-      { key: 'voltage', label: 'Tegangan', unit: 'V' },
+      { key: 'rpm',         label: 'RPM',          unit: 'RPM' },
+      { key: 'motor_power', label: 'Motor Power',  unit: 'W' },
     ],
   },
   {
     group: 'Udara Terkompresi',
     fields: [
       { key: 'outlet_pressure_bar', label: 'Tekanan Outlet', unit: 'bar' },
-      { key: 'air_flow', label: 'Aliran Udara', unit: 'm³/h' },
-      { key: 'noise_db', label: 'Kebisingan', unit: 'dB' },
-      { key: 'outlet_temp', label: 'Suhu Outlet', unit: '°C' },
+      { key: 'air_flow',            label: 'Aliran Udara',   unit: 'm³/h' },
+      { key: 'noise_db',            label: 'Kebisingan',     unit: 'dB' },
+      { key: 'outlet_temp',         label: 'Suhu Outlet',    unit: '°C' },
     ],
   },
   {
     group: 'Sistem Pendingin',
     fields: [
       { key: 'wpump_outlet_press', label: 'Tekanan Pompa Air', unit: 'bar' },
-      { key: 'water_inlet_temp', label: 'Suhu Air Masuk', unit: '°C' },
-      { key: 'water_outlet_temp', label: 'Suhu Air Keluar', unit: '°C' },
-      { key: 'wpump_power', label: 'Daya Pompa Air', unit: 'W' },
-      { key: 'water_flow', label: 'Aliran Air', unit: 'L/min' },
+      { key: 'water_flow',         label: 'Aliran Air',        unit: 'L/min' },
     ],
   },
   {
-    group: 'Sistem Oli',
+    group: 'Akselerometer',
     fields: [
-      { key: 'oilpump_power', label: 'Daya Pompa Oli', unit: 'W' },
-      { key: 'oil_tank_temp', label: 'Suhu Tangki Oli', unit: '°C' },
-    ],
-  },
-  {
-    group: 'Akselerometer G-Axis',
-    fields: [
-      { key: 'gaccx', label: 'Akselerasi X', unit: 'g' },
-      { key: 'gaccy', label: 'Akselerasi Y', unit: 'g' },
-      { key: 'gaccz', label: 'Akselerasi Z', unit: 'g' },
-    ],
-  },
-  {
-    group: 'Akselerometer H-Axis',
-    fields: [
-      { key: 'haccx', label: 'Akselerasi X', unit: 'g' },
-      { key: 'haccy', label: 'Akselerasi Y', unit: 'g' },
-      { key: 'haccz', label: 'Akselerasi Z', unit: 'g' },
+      { key: 'gaccz', label: 'G-Axis Akselerasi Z', unit: 'g' },
+      { key: 'haccz', label: 'H-Axis Akselerasi Z', unit: 'g' },
     ],
   },
 ];
+
+export const DUMMY_COMPRESSOR = {
+  name: "Dummy Compressor ML Test Rig",
+  machine_id: "CMP-DUMMY-001",
+  location: "Area Produksi - Simulasi ML",
+  status: "running",
+};

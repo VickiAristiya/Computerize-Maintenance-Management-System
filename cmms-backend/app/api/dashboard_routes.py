@@ -16,54 +16,91 @@ def _sensor_to_payload(sensor_data):
     payload["demo_mode"] = getattr(sensor_data, "demo_mode", None)
     return payload
 
+COMPONENT_LABELS = {
+    "bearings": "Bearing",
+    "wpump": "Water Pump",
+    "radiator": "Radiator",
+    "exvalve": "Exhaust Valve",
+}
+
+PRIORITY_ORDER = {'critical': 4, 'high': 3, 'medium': 2, 'low': 1, 'very_low': 0}
+
+
 def get_predictive_maintenance_notifications():
-    """Fungsi untuk mendapatkan notifikasi predictive maintenance"""
+    """Notifikasi predictive maintenance untuk semua 4 komponen per asset."""
     notifications = []
 
     if not predictor.is_ready():
         return notifications
 
     try:
-        # Ambil semua asset
         assets = Asset.objects()
 
         for asset in assets:
-            # Ambil data sensor terbaru untuk asset ini
             latest_sensor = SensorData.objects(asset=asset).order_by('-timestamp').first()
+            if not latest_sensor:
+                continue
 
-            if latest_sensor:
-                prediction = predictor.predict(_sensor_to_payload(latest_sensor))
-                if not prediction["ok"]:
-                    continue
+            prediction = predictor.predict(_sensor_to_payload(latest_sensor))
+            if not prediction.get("ok"):
+                continue
 
-                is_demo_maintenance = str(prediction.get("demo_mode") or "").startswith("maintenance")
+            components = prediction.get("components", {})
 
-                # Buat notifikasi berdasarkan prediksi.
-                # Mode demo maintenance selalu dimunculkan agar tombol rendah/sedang/tinggi/kritis
-                # bisa dipakai untuk presentasi alur predictive maintenance.
-                if is_demo_maintenance or prediction['failure_probability'] > 0.3:
-                    notifications.append({
-                        "id": f"pred-{str(asset.id)}",
-                        "asset_id": str(asset.id),
-                        "asset_name": asset.name,
-                        "demo_mode": prediction.get("demo_mode"),
-                        "risk_level": prediction.get("risk_level"),
-                        "type": "predictive_maintenance",
-                        "title": "Prediksi Maintenance Diperlukan",
-                        "message": prediction['recommendation'],
-                        "priority": prediction['priority'],
-                        "due_date": prediction['due_date'],
-                        "predicted_days": prediction['predicted_days'],
-                        "failure_probability": prediction['failure_probability'],
-                        "health_score": prediction['health_score'],
-                        "link": "/work-orders"  # Link ke halaman work orders untuk membuat WO
+            # Kumpulkan komponen yang bermasalah (fault_prob > 0.3)
+            faulty = []
+            worst_priority = 0
+            worst_risk = "very_low"
+
+            for comp_key, comp_data in components.items():
+                fault_prob = comp_data.get("failure_probability", 0)
+                risk_level = comp_data.get("risk_level", "very_low")
+                priority = comp_data.get("priority", "low")
+
+                if fault_prob > 0.3:
+                    faulty.append({
+                        "key": comp_key,
+                        "label": COMPONENT_LABELS.get(comp_key, comp_key),
+                        "prediction": comp_data.get("prediction"),
+                        "status": comp_data.get("status"),
+                        "risk_level": risk_level,
+                        "failure_probability": fault_prob,
+                        "health_score": comp_data.get("health_score"),
+                        "predicted_days": comp_data.get("predicted_days"),
+                        "due_date": comp_data.get("due_date"),
                     })
+                    if PRIORITY_ORDER.get(priority, 0) > worst_priority:
+                        worst_priority = PRIORITY_ORDER.get(priority, 0)
+                        worst_risk = risk_level
 
-        # Sort by priority (critical > high > medium > low) dan failure probability
-        priority_order = {'critical': 4, 'high': 3, 'medium': 2, 'low': 1}
-        notifications.sort(key=lambda x: (priority_order.get(x['priority'], 0), x['failure_probability']), reverse=True)
+            if not faulty:
+                continue
 
-        # Ambil hanya 10 notifikasi teratas
+            worst_priority_label = {4: 'critical', 3: 'high', 2: 'medium', 1: 'low'}.get(worst_priority, 'low')
+
+            notifications.append({
+                "id": f"pred-{str(asset.id)}",
+                "asset_id": str(asset.id),
+                "asset_name": asset.name,
+                "type": "predictive_maintenance",
+                "title": "Prediksi Maintenance Diperlukan",
+                "message": prediction.get("recommendation", ""),
+                "priority": worst_priority_label,
+                "risk_level": worst_risk,
+                "overall_health_score": prediction.get("overall_health_score"),
+                "recommendation": prediction.get("recommendation", ""),
+                "faulty_components": faulty,
+                "due_date": prediction.get("due_date"),
+                "predicted_days": prediction.get("predicted_days"),
+                "failure_probability": prediction.get("failure_probability"),
+                "health_score": prediction.get("health_score"),
+                "link": "/work-orders",
+            })
+
+        notifications.sort(
+            key=lambda x: (PRIORITY_ORDER.get(x['priority'], 0), x['failure_probability'] or 0),
+            reverse=True,
+        )
         return notifications[:10]
 
     except Exception as e:

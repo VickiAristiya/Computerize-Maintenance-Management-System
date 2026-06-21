@@ -1,7 +1,7 @@
 # /cmms-backend/app/api/ml_routes.py
 from flask import Blueprint, jsonify, request
 
-from app.ml_service import CompressorPredictor
+from app.ml_service import CompressorPredictor, COMPONENTS
 from app.models import Asset, SensorData
 
 
@@ -48,7 +48,7 @@ def get_compressor_features():
     """Daftar fitur yang harus dikirim ke endpoint prediksi compressor."""
     try:
         return jsonify({
-            "target": "bearings",
+            "targets": COMPONENTS,
             "required_features": predictor.feature_columns,
             "model_ready": predictor.is_ready(),
             "missing_model_files": predictor.missing_model_files(),
