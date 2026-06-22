@@ -50,11 +50,11 @@ export default function Layout() {
         <div className="h-20 flex items-center px-6 border-b border-slate-100">
             <Link to="/" className="flex items-center gap-3 group">
                 <div className="bg-blue-50 p-1.5 rounded-lg group-hover:bg-blue-100 transition-colors">
-                    <img src={LogoImage} alt="Maint-Track Pro" className="h-8 w-8 object-contain"/>
+                    <img src={LogoImage} alt="Polman Maintenance System" className="h-8 w-8 object-contain"/>
                 </div>
                 <div>
-                    <h1 className="text-lg font-extrabold text-slate-800 leading-none">Maint-Track</h1>
-                    <span className="text-xs font-bold text-blue-600 tracking-widest">PRO</span>
+                    <h1 className="text-lg font-extrabold text-slate-800 leading-none">Polman</h1>
+                    <span className="text-xs font-bold text-blue-600 tracking-widest">Maintenance System</span>
                 </div>
             </Link>
         </div>
@@ -99,7 +99,7 @@ export default function Layout() {
             <div className="h-20 flex items-center justify-between px-6 border-b border-slate-100">
               <div className="flex items-center gap-2">
                   <img src={LogoImage} alt="Logo" className="h-8"/>
-                  <span className="font-bold text-lg text-slate-800">Maint-Track</span>
+                  <span className="font-bold text-lg text-slate-800">Polman</span>
               </div>
               <button onClick={() => setIsSidebarOpen(false)} className="text-slate-500 hover:text-slate-800">
                 <X size={24} />
