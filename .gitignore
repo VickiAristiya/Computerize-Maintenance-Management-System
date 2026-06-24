@@ -43,4 +43,11 @@ data excell.xlsx
 *.docx
 *.sql
 
+# Script development di root (tidak dipakai aplikasi)
+analyze_templates.py
+explore_model.py
+export_excel.py
+ml_inspect.py
+mongodb_sample_data.json
+
 Simulasi/
