@@ -66,10 +66,10 @@ def predict_compressor_payload():
     return _run_prediction(data)
 
 
-@ml_bp.route("/predict/<asset_id>", methods=["POST"])
-def predict_maintenance(asset_id):
+@ml_bp.route("/predict/<machine_id>", methods=["POST"])
+def predict_maintenance(machine_id):
     """Prediksi berdasarkan data sensor terbaru milik asset (model dipilih dari registry)."""
-    asset = Asset.objects(id=asset_id).first()
+    asset = Asset.objects(machine_id=machine_id).first()
     if not asset:
         return _error_response("Asset not found", 404)
 
@@ -161,10 +161,10 @@ def get_all_predictions():
     }), 200
 
 
-@ml_bp.route("/sensor-history/<asset_id>", methods=["GET"])
-def get_sensor_history(asset_id):
+@ml_bp.route("/sensor-history/<machine_id>", methods=["GET"])
+def get_sensor_history(machine_id):
     """Riwayat data sensor untuk satu asset, diurutkan terbaru dulu."""
-    asset = Asset.objects(id=asset_id).first()
+    asset = Asset.objects(machine_id=machine_id).first()
     if not asset:
         return _error_response("Asset not found", 404)
 
@@ -209,10 +209,10 @@ def add_sensor_data():
     """Simpan data sensor dan jalankan prediksi jika 20 fitur compressor lengkap."""
     data = request.get_json(silent=True) or {}
 
-    if "asset_id" not in data:
-        return _error_response("Missing required field: asset_id", 400)
+    if "machine_id" not in data:
+        return _error_response("Missing required field: machine_id", 400)
 
-    asset = Asset.objects(id=data["asset_id"]).first()
+    asset = Asset.objects(machine_id=data["machine_id"]).first()
     if not asset:
         return _error_response("Asset not found", 404)
 

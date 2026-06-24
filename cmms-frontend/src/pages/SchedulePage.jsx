@@ -1,13 +1,30 @@
 // src/pages/SchedulePage.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FileWarning, Trash2, CalendarPlus, Calendar, HardDrive, Repeat, Edit, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
+import { FileWarning, Trash2, CalendarPlus, Calendar, HardDrive, Repeat, Edit, AlertTriangle, Clock, CheckCircle, ClipboardList } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import ScheduleForm from './ScheduleForm.jsx';
 import Modal from '../components/Modal.jsx';
+import { useAuth } from '../context/useAuth.js';
+import { useNavigate } from 'react-router-dom';
 
 export default function SchedulePage() {
+  const { checkRole } = useAuth();
+  const navigate = useNavigate();
+
+  const handleCreateWOFromSchedule = (s) => {
+    navigate('/work-orders', {
+      state: {
+        fromSchedule: {
+          title: s.task_name,
+          description: s.description_template || '',
+          assetId: s.asset_id,
+          type: 'preventive',
+        }
+      }
+    });
+  };
   const [schedules, setSchedules] = useState([]);
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -144,12 +161,14 @@ export default function SchedulePage() {
             <h1 className="text-3xl font-bold text-slate-800">Penjadwalan Perawatan</h1>
             <p className="text-slate-500 mt-1">Atur jadwal preventive maintenance untuk aset Anda.</p>
         </div>
-        <button
-            onClick={openCreateModal}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-700 transition-all transform hover:-translate-y-0.5"
-        >
-            <CalendarPlus size={18} className="mr-2" /> Buat Jadwal Baru
-        </button>
+        {checkRole(['admin', 'manager']) && (
+          <button
+              onClick={openCreateModal}
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg shadow-md hover:bg-blue-700 transition-all transform hover:-translate-y-0.5"
+          >
+              <CalendarPlus size={18} className="mr-2" /> Buat Jadwal Baru
+          </button>
+        )}
       </div>
 
       {/* Tabel Daftar Jadwal */}
@@ -173,7 +192,9 @@ export default function SchedulePage() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
                     <div className="flex items-center gap-1"><Calendar size={14}/> Jadwal Berikutnya</div>
                   </th>
-                  <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Opsi</th>
+                  {checkRole(['admin', 'manager']) && (
+                    <th className="px-6 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Opsi</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -234,31 +255,42 @@ export default function SchedulePage() {
                         </td>
 
                         {/* Opsi */}
-                        <td className="px-6 py-4 whitespace-nowrap text-center">
-                          <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button
-                                    onClick={() => handleCompleteSchedule(s.id, s.task_name, s.frequency_days)}
-                                    className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                    title="Tandai Selesai (Maju ke Siklus Berikutnya)"
-                                >
-                                    <CheckCircle size={18} />
-                                </button>
-                                <button
-                                    onClick={() => openEditModal(s)}
-                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                    title="Edit Jadwal"
-                                >
-                                    <Edit size={18} />
-                                </button>
-                                <button
-                                    onClick={() => handleDeleteSchedule(s.id, s.task_name)}
-                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Hapus Jadwal"
-                                >
-                                    <Trash2 size={18} />
-                                </button>
-                          </div>
-                        </td>
+                        {checkRole(['admin', 'manager']) && (
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  {checkRole(['manager']) && (
+                                    <button
+                                        onClick={() => handleCreateWOFromSchedule(s)}
+                                        className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                        title="Buat Work Order dari Jadwal Ini"
+                                    >
+                                        <ClipboardList size={18} />
+                                    </button>
+                                  )}
+                                  <button
+                                      onClick={() => handleCompleteSchedule(s.id, s.task_name, s.frequency_days)}
+                                      className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                      title="Tandai Selesai (Maju ke Siklus Berikutnya)"
+                                  >
+                                      <CheckCircle size={18} />
+                                  </button>
+                                  <button
+                                      onClick={() => openEditModal(s)}
+                                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                      title="Edit Jadwal"
+                                  >
+                                      <Edit size={18} />
+                                  </button>
+                                  <button
+                                      onClick={() => handleDeleteSchedule(s.id, s.task_name)}
+                                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                      title="Hapus Jadwal"
+                                  >
+                                      <Trash2 size={18} />
+                                  </button>
+                            </div>
+                          </td>
+                        )}
                       
                       </tr>
                     );

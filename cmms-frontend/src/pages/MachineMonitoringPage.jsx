@@ -151,7 +151,7 @@ const MachineCard = ({ machine, onStatusChange, isUpdating, onSensorClick }) => 
             {/* Tombol Sensor */}
             {machine.has_sensor_data && (
                 <button
-                    onClick={() => onSensorClick(machine.id)}
+                    onClick={() => onSensorClick(machine.machine_id)}
                     className="w-full mb-2 bg-emerald-600 text-white text-xs font-bold py-1.5 rounded hover:bg-emerald-700 flex items-center justify-center gap-1"
                 >
                     <LineChart size={12} /> Monitoring Sensor
@@ -246,7 +246,7 @@ const MachineRow = ({ machine, onStatusChange, isUpdating, onSensorClick }) => {
                 <div className="flex items-center gap-2">
                     {machine.has_sensor_data && (
                         <button
-                            onClick={() => onSensorClick(machine.id)}
+                            onClick={() => onSensorClick(machine.machine_id)}
                             className="bg-emerald-600 text-white px-3 py-1 text-xs font-bold rounded hover:bg-emerald-700 flex items-center gap-1"
                         >
                             <LineChart size={12} /> Sensor

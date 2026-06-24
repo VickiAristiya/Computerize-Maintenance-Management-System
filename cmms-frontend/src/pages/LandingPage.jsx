@@ -79,19 +79,9 @@ export default function LandingPage() {
           {/* Navigasi Kanan */}
           <div className="flex items-center gap-4">
             <Link to="/login">
-              <button className={`hidden md:flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full transition-all ${
-                scrolled 
-                  ? 'text-slate-600 hover:bg-slate-100' 
-                  : 'text-white/90 hover:bg-white/10'
-              }`}>
-                <LogIn size={18} />
-                Masuk
-              </button>
-            </Link>
-            <Link to="/register">
               <button className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-full shadow-lg shadow-blue-600/30 transition-all transform hover:scale-105 active:scale-95">
-                Daftar Gratis
-                <ArrowRight size={16} />
+                <LogIn size={18} />
+                Masuk ke Sistem
               </button>
             </Link>
           </div>
@@ -125,14 +115,9 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-              <Link to="/register" className="w-full sm:w-auto">
-                <button className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white text-lg font-bold rounded-xl shadow-xl shadow-blue-900/50 transition-all transform hover:-translate-y-1">
-                  Mulai Sekarang
-                </button>
-              </Link>
               <Link to="/login" className="w-full sm:w-auto">
-                <button className="w-full sm:w-auto px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white text-lg font-semibold rounded-xl border border-slate-700 transition-all">
-                  Lihat Demo
+                <button className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white text-lg font-bold rounded-xl shadow-xl shadow-blue-900/50 transition-all transform hover:-translate-y-1">
+                  Masuk ke Sistem
                 </button>
               </Link>
             </div>
@@ -304,18 +289,15 @@ export default function LandingPage() {
         <section className="py-24 bg-blue-600 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
           <div className="relative max-w-4xl mx-auto px-6 text-center text-white">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-6">Siap Mentransformasi Pabrik Anda?</h2>
+            <h2 className="text-4xl md:text-5xl font-extrabold mb-6">Siap Menggunakan Sistem?</h2>
             <p className="text-blue-100 text-xl mb-10 max-w-2xl mx-auto">
-              Bergabunglah sekarang. Buat akun Admin pertama Anda dan rasakan kemudahan manajemen aset yang sesungguhnya.
+              Masuk menggunakan akun yang telah diberikan oleh administrator sistem.
             </p>
-            <Link to="/register">
+            <Link to="/login">
               <button className="px-10 py-4 bg-white text-blue-600 text-lg font-bold rounded-full shadow-2xl hover:bg-blue-50 transition-transform hover:-translate-y-1">
-                Buat Akun Admin Gratis
+                Masuk ke Sistem
               </button>
             </Link>
-            <p className="mt-6 text-sm text-blue-200 opacity-80">
-              Tidak perlu kartu kredit • Setup dalam 5 menit
-            </p>
           </div>
         </section>
       </main>

@@ -33,6 +33,36 @@ def login():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# --- POST: Ganti Password ---
+@auth_bp.route('/change-password', methods=['POST'])
+def change_password():
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
+        old_password = data.get('old_password')
+        new_password = data.get('new_password')
+
+        if not user_id or not old_password or not new_password:
+            return jsonify({"error": "Semua field wajib diisi."}), 400
+
+        if len(new_password) < 6:
+            return jsonify({"error": "Password baru minimal 6 karakter."}), 400
+
+        user = User.objects(id=user_id).first()
+        if not user:
+            return jsonify({"error": "Pengguna tidak ditemukan."}), 404
+
+        if not user.check_password(old_password):
+            return jsonify({"error": "Password lama tidak sesuai."}), 401
+
+        user.set_password(new_password)
+        user.save()
+
+        return jsonify({"message": "Password berhasil diubah."}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 # --- POST: Rute Registrasi ---
 @auth_bp.route('/register', methods=['POST'])
 def register_user():

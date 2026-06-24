@@ -14,7 +14,6 @@ import ReportPage from './pages/ReportPage.jsx';
 import CompliancePage from './pages/CompliancePage.jsx';
 import UserPage from './pages/UserPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
-import RegisterPage from './pages/RegisterPage.jsx';
 import InventoryPage from './pages/InventoryPage.jsx';
 import MachineMonitoringPage from './pages/MachineMonitoringPage.jsx';
 import SensorMonitoringPage from './pages/SensorMonitoringPage.jsx';
@@ -47,7 +46,6 @@ export default function App() {
 
       {/* Rute Publik */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
       
       {/* Rute Utama (Dilindungi) */}
       <Route path="/" element={<ProtectedRoute roles={['any']}><Layout /></ProtectedRoute>}>

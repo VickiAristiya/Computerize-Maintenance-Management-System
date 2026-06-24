@@ -81,6 +81,7 @@ def get_predictive_maintenance_notifications():
             notifications.append({
                 "id": f"pred-{str(asset.id)}",
                 "asset_id": str(asset.id),
+                "machine_id": asset.machine_id,
                 "asset_name": asset.name,
                 "type": "predictive_maintenance",
                 "title": "Prediksi Maintenance Diperlukan",
@@ -112,7 +113,7 @@ def get_dashboard_stats():
     try:
         # --- 1. Statistik Aset ---
         total_assets = Asset.objects.count()
-        down_assets = Asset.objects(status='down').count()
+        down_assets = Asset.objects(status__in=['down', 'breakdown']).count()
         
         # --- 2. Statistik Inventaris (NEW) ---
         total_components = ComponentItem.objects.count()

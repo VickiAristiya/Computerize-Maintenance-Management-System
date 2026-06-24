@@ -7,19 +7,22 @@ import ErrorState from '../components/ErrorState.jsx';
 import WorkOrderForm from './WorkOrderForm.jsx';
 import Modal from '../components/Modal.jsx';
 import { useAuth } from '../context/useAuth.js';
+import { useLocation } from 'react-router-dom';
 
 export default function WorkOrderPage() {
-  const { user, checkRole } = useAuth(); 
-  
+  const { user, checkRole } = useAuth();
+  const location = useLocation();
+
   const [workOrders, setWorkOrders] = useState([]);
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // State Modal Create/Edit
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [currentWo, setCurrentWo] = useState(null); 
+  const [currentWo, setCurrentWo] = useState(null);
+  const [woPrefillData, setWoPrefillData] = useState(null); 
 
   // State Modal Bukti (Teknisi)
   const [isEvidenceModalOpen, setIsEvidenceModalOpen] = useState(false);
@@ -55,6 +58,14 @@ export default function WorkOrderPage() {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (location.state?.fromSchedule) {
+      setWoPrefillData(location.state.fromSchedule);
+      setIsCreateModalOpen(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // --- CRUD Handlers ---
   const handleWorkOrderCreated = (newWorkOrder) => {
@@ -385,8 +396,8 @@ export default function WorkOrderPage() {
       </div>
       
       {isCreateModalOpen && (
-        <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Buat Work Order Baru">
-            <WorkOrderForm assets={assets} onWorkOrderCreated={handleWorkOrderCreated} onClose={() => setIsCreateModalOpen(false)} />
+        <Modal isOpen={isCreateModalOpen} onClose={() => { setIsCreateModalOpen(false); setWoPrefillData(null); }} title={woPrefillData ? `Buat WO dari Jadwal: ${woPrefillData.title}` : "Buat Work Order Baru"}>
+            <WorkOrderForm assets={assets} onWorkOrderCreated={handleWorkOrderCreated} onClose={() => { setIsCreateModalOpen(false); setWoPrefillData(null); }} prefillData={woPrefillData} />
         </Modal>
       )}
 

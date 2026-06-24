@@ -4,15 +4,15 @@ import api from '../services/api';
 import { Plus, Loader2, Save, FileText, Settings, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '../context/useAuth.js';
 
-export default function WorkOrderForm({ assets, onWorkOrderCreated, initialData, onWOUpdated, onClose }) {
-  const { user } = useAuth(); 
+export default function WorkOrderForm({ assets, onWorkOrderCreated, initialData, prefillData, onWOUpdated, onClose }) {
+  const { user } = useAuth();
   const isEditMode = !!initialData;
-  
-  const [title, setTitle] = useState(initialData?.title || '');
-  const [description, setDescription] = useState(initialData?.description || '');
-  const [assetId, setAssetId] = useState(initialData?.asset_id || ''); 
+
+  const [title, setTitle] = useState(initialData?.title || prefillData?.title || '');
+  const [description, setDescription] = useState(initialData?.description || prefillData?.description || '');
+  const [assetId, setAssetId] = useState(initialData?.asset_id || prefillData?.assetId || '');
   const [componentId, setComponentId] = useState(initialData?.component_id || '');
-  const [type, setType] = useState(initialData?.type || 'corrective');
+  const [type, setType] = useState(initialData?.type || prefillData?.type || 'corrective');
   const [priority, setPriority] = useState(initialData?.priority || 'medium');
   const [initialImage, setInitialImage] = useState(initialData?.initial_image || '');
 
@@ -63,9 +63,9 @@ export default function WorkOrderForm({ assets, onWorkOrderCreated, initialData,
         setError("Judul WO wajib diisi.");
         return;
     }
-    // Validasi Foto Awal Wajib saat Create
-    if (!isEditMode && !initialImage) {
-        setError("Wajib menyertakan foto bagian yang bermasalah/perlu dicek.");
+    // Foto wajib hanya untuk corrective (ada kerusakan yang perlu didokumentasikan)
+    if (!isEditMode && type === 'corrective' && !initialImage) {
+        setError("Wajib menyertakan foto bagian yang bermasalah.");
         return;
     }
 
@@ -188,7 +188,9 @@ export default function WorkOrderForm({ assets, onWorkOrderCreated, initialData,
 
         <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-                Foto Bagian Masalah/Pencegahan { !isEditMode && <span className="text-red-500">*</span> }
+                Foto {type === 'corrective' ? 'Bagian Bermasalah' : 'Dokumentasi Awal'}
+                { !isEditMode && type === 'corrective' && <span className="text-red-500"> *</span> }
+                { !isEditMode && type === 'preventive' && <span className="text-slate-400 text-xs font-normal"> (opsional)</span> }
             </label>
             <div className="border border-slate-300 rounded-lg p-3 bg-slate-50">
                 <div className="flex items-center gap-3">
@@ -201,11 +203,11 @@ export default function WorkOrderForm({ assets, onWorkOrderCreated, initialData,
                              </div>
                          )}
                     </div>
-                    <input 
-                        type="file" 
+                    <input
+                        type="file"
                         accept="image/*"
                         onChange={handleImageChange}
-                        required={!isEditMode}
+                        required={!isEditMode && type === 'corrective'}
                         className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                     />
                 </div>

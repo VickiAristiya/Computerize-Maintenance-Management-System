@@ -112,7 +112,7 @@ export default function DummyCompressorSimulator() {
       <SensorInputModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        assetId={asset?.id}
+        machineId={asset?.machine_id}
         onPredictionResult={pred => setPrediction(pred)}
       />
     </>

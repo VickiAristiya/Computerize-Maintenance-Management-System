@@ -151,7 +151,7 @@ function TemplateSelector({ selected, onChange }) {
 }
 
 // ── Modal utama ─────────────────────────────────────────────────────────────
-export default function SensorInputModal({ isOpen, onClose, assetId, onPredictionResult }) {
+export default function SensorInputModal({ isOpen, onClose, machineId, onPredictionResult }) {
   const [selectedTemplate, setSelectedTemplate] = useState('manual');
   const [formData, setFormData]   = useState({ ...EMPTY_FORM });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -203,7 +203,7 @@ export default function SensorInputModal({ isOpen, onClose, assetId, onPredictio
       setError(`Harap isi semua field sensor. ${emptyKeys.length} field masih kosong.`);
       return;
     }
-    if (!assetId) {
+    if (!machineId) {
       setError('Aset belum siap. Tunggu sebentar lalu coba lagi.');
       return;
     }
@@ -214,7 +214,7 @@ export default function SensorInputModal({ isOpen, onClose, assetId, onPredictio
     try {
       const numeric = Object.fromEntries(ALL_KEYS.map(k => [k, parseFloat(formData[k])]));
       const payload = {
-        asset_id:             assetId,
+        machine_id:           machineId,
         rpm:                  numeric.rpm,
         motor_power:          numeric.motor_power,
         noise_db:             numeric.noise_db,

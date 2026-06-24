@@ -121,16 +121,16 @@ export default function MLNotificationDetailModal({ notification, onClose }) {
   const [error, setError]     = useState(null);
 
   useEffect(() => {
-    if (!notification?.asset_id) return;
+    if (!notification?.machine_id) return;
     setLoading(true);
     setError(null);
     setData(null);
 
-    api.post(`/ml/predict/${notification.asset_id}`)
+    api.post(`/ml/predict/${notification.machine_id}`)
       .then(res => setData(res.data))
       .catch(() => setError('Gagal memuat detail. Periksa koneksi ke server.'))
       .finally(() => setLoading(false));
-  }, [notification?.asset_id]);
+  }, [notification?.machine_id]);
 
   if (!notification) return null;
 

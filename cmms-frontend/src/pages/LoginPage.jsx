@@ -120,11 +120,8 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    <p className="mt-8 text-center text-sm text-slate-600">
-                        Belum punya akun?{' '}
-                        <Link to="/register" className="font-semibold text-blue-600 hover:text-blue-500 hover:underline transition-all">
-                            Daftar Gratis
-                        </Link>
+                    <p className="mt-8 text-center text-sm text-slate-500">
+                        Hubungi administrator untuk mendapatkan akun.
                     </p>
                 </div>
             </div>

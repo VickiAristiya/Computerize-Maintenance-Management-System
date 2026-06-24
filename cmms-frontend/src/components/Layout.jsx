@@ -20,20 +20,23 @@ import {
   ClipboardCopy,
   Search,
   Activity,
+  KeyRound,
 } from 'lucide-react';
-import { useAuth } from '../context/useAuth.js'; 
-import LogoImage from '../assets/logo.png'; 
+import { useAuth } from '../context/useAuth.js';
+import LogoImage from '../assets/logo.png';
+import ChangePasswordModal from './ChangePasswordModal.jsx';
 
 export default function Layout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { user, logout, checkRole } = useAuth(); 
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const { user, logout, checkRole } = useAuth();
 
   const navItems = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard", roles: ['any'] },
     { to: "/assets", icon: HardDrive, label: "Daftar Aset", roles: ['admin', 'manager'] }, 
     { to: "/monitoring", icon: Activity, label: "Machine Monitoring", roles: ['admin', 'manager', 'technician'] },
     { to: "/work-orders", icon: ClipboardList, label: "Work Order", roles: ['any'] },
-    { to: "/schedules", icon: CalendarClock, label: "Penjadwalan", roles: ['admin', 'manager'] },
+    { to: "/schedules", icon: CalendarClock, label: "Penjadwalan", roles: ['admin', 'manager', 'technician'] },
     { to: "/inventory", icon: Warehouse, label: "Gudang (Inventaris)", roles: ['admin', 'manager'] },
     { to: "/templates", icon: ClipboardCopy, label: "Template Aset", roles: ['admin'] },
     { to: "/history", icon: History, label: "Riwayat Perawatan", roles: ['any'] },
@@ -79,8 +82,15 @@ export default function Layout() {
                     <p className="text-sm font-bold text-slate-700 truncate">{user?.name}</p>
                     <p className="text-xs text-slate-500 truncate capitalize">{user?.role}</p>
                 </div>
-                <button 
-                    onClick={logout} 
+                <button
+                    onClick={() => setIsChangePasswordOpen(true)}
+                    className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Ganti Password"
+                >
+                    <KeyRound size={18} />
+                </button>
+                <button
+                    onClick={logout}
                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     title="Logout"
                 >
@@ -90,6 +100,7 @@ export default function Layout() {
         </div>
       </aside>
 
+      <ChangePasswordModal isOpen={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
 
       {/* --- SIDEBAR MOBILE --- */}
       {isSidebarOpen && (

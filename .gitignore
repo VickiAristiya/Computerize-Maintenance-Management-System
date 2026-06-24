@@ -32,5 +32,6 @@ Template_KTI_TA_final.docx
 data excell.xlsx
 *.xlsx
 *.docx
+*.sql
 
 Simulasi/
