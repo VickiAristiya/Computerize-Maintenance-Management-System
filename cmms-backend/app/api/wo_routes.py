@@ -111,9 +111,9 @@ def create_work_order():
         if not data.get('title') or not data.get('asset_id') or not data.get('type'):
             return jsonify({"error": "Input tidak lengkap: title, asset_id, dan type diperlukan"}), 400
 
-        # 3. Validasi Foto Awal (Wajib)
-        if not data.get('initial_image'):
-             return jsonify({"error": "Wajib menyertakan foto bagian yang harus diperbaiki."}), 400
+        # 3. Validasi Foto Awal (Wajib hanya untuk corrective)
+        if data.get('type') == 'corrective' and not data.get('initial_image'):
+            return jsonify({"error": "Wajib menyertakan foto bagian yang harus diperbaiki."}), 400
 
         try:
             asset = Asset.objects.get(id=data['asset_id'])
