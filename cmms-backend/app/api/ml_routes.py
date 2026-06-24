@@ -196,7 +196,7 @@ def get_sensor_history(machine_id):
         history.append(row)
 
     return jsonify({
-        "asset_id": asset_id,
+        "machine_id": machine_id,
         "asset_name": asset.name,
         "total": len(history),
         "available_fields": sorted(available_fields),

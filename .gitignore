@@ -20,6 +20,15 @@ Thumbs.db
 # Jupyter checkpoints
 .ipynb_checkpoints/
 
+# Folder ML draft (versi lama, tidak dipakai backend)
+machine-learning/
+
+# Output training ML (tidak perlu di-deploy)
+machine-learning filtered data/*/results/
+machine-learning filtered data/*/run_log.txt
+machine-learning filtered data/*/test_*.py
+machine-learning filtered data/*/test_*.png
+
 # IDE
 .vscode/
 .idea/
