@@ -28,6 +28,16 @@ machine-learning filtered data/*/results/
 machine-learning filtered data/*/run_log.txt
 machine-learning filtered data/*/test_*.py
 machine-learning filtered data/*/test_*.png
+machine-learning filtered data/*/compressor_model.py
+
+# Model komponen yang sudah tidak digunakan (wpump, radiator, exvalve)
+machine-learning filtered data/compressor/models/*_wpump.keras
+machine-learning filtered data/compressor/models/*_radiator.keras
+machine-learning filtered data/compressor/models/*_exvalve.keras
+machine-learning filtered data/compressor/models/*_wpump.pkl
+machine-learning filtered data/compressor/models/*_radiator.pkl
+machine-learning filtered data/compressor/models/*_exvalve.pkl
+machine-learning filtered data/compressor/models/hybrid_model.pkl
 
 # IDE
 .vscode/
@@ -50,4 +60,5 @@ export_excel.py
 ml_inspect.py
 mongodb_sample_data.json
 
-Simulasi/
+# Simulasi Version 1 sudah digantikan oleh Version 2
+Simulasi/Version 1/

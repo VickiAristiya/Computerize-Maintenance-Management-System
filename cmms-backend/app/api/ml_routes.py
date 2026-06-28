@@ -172,9 +172,7 @@ def get_sensor_history(machine_id):
     records = SensorData.objects(asset=asset).order_by("-timestamp").limit(limit)
 
     SENSOR_FIELDS = [
-        "rpm", "motor_power", "noise_db", "outlet_pressure_bar",
-        "air_flow", "outlet_temp", "wpump_outlet_press", "water_flow",
-        "gaccz", "haccz",
+        "noise_db", "water_flow", "air_flow", "gaccx", "outlet_temp",
     ]
 
     history = []

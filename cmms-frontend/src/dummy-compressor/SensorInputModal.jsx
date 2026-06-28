@@ -214,17 +214,12 @@ export default function SensorInputModal({ isOpen, onClose, machineId, onPredict
     try {
       const numeric = Object.fromEntries(ALL_KEYS.map(k => [k, parseFloat(formData[k])]));
       const payload = {
-        machine_id:           machineId,
-        rpm:                  numeric.rpm,
-        motor_power:          numeric.motor_power,
-        noise_db:             numeric.noise_db,
-        outlet_pressure_bar:  numeric.outlet_pressure_bar,
-        air_flow:             numeric.air_flow,
-        outlet_temp:          numeric.outlet_temp,
-        wpump_outlet_press:   numeric.wpump_outlet_press,
-        water_flow:           numeric.water_flow,
-        gaccz:                numeric.gaccz,
-        haccz:                numeric.haccz,
+        machine_id:   machineId,
+        noise_db:     numeric.noise_db,
+        water_flow:   numeric.water_flow,
+        air_flow:     numeric.air_flow,
+        gaccx:        numeric.gaccx,
+        outlet_temp:  numeric.outlet_temp,
       };
 
       const response = await api.post('/ml/sensor-data', payload);
@@ -300,7 +295,7 @@ export default function SensorInputModal({ isOpen, onClose, machineId, onPredict
                 </span>
               </div>
 
-              {/* 4 komponen */}
+              {/* Komponen bearing */}
               <div className="grid grid-cols-2 gap-2">
                 {prediction.components && Object.entries(prediction.components).map(([key, comp]) => (
                   <ComponentBadge

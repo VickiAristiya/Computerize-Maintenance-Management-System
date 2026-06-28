@@ -21,40 +21,17 @@ const RISK_LABELS = {
 
 const COMPONENT_LABELS = {
   bearings: 'Bearing',
-  wpump:    'Water Pump',
-  radiator: 'Radiator',
-  exvalve:  'Exhaust Valve',
 };
 
 const SENSOR_FIELD_GROUPS = [
   {
-    group: 'Motor & Drive',
+    group: 'Sensor Bearing',
     fields: [
-      { key: 'rpm',         label: 'RPM',         unit: 'RPM' },
-      { key: 'motor_power', label: 'Motor Power',  unit: 'W' },
-    ],
-  },
-  {
-    group: 'Udara Terkompresi',
-    fields: [
-      { key: 'outlet_pressure_bar', label: 'Tekanan Outlet', unit: 'bar' },
-      { key: 'air_flow',            label: 'Aliran Udara',   unit: 'm³/h' },
-      { key: 'noise_db',            label: 'Kebisingan',     unit: 'dB' },
-      { key: 'outlet_temp',         label: 'Suhu Outlet',    unit: '°C' },
-    ],
-  },
-  {
-    group: 'Sistem Pendingin',
-    fields: [
-      { key: 'wpump_outlet_press', label: 'Tekanan Pompa Air', unit: 'bar' },
-      { key: 'water_flow',         label: 'Aliran Air',        unit: 'L/min' },
-    ],
-  },
-  {
-    group: 'Akselerometer',
-    fields: [
-      { key: 'gaccz', label: 'G-Axis Akselerasi Z', unit: 'g' },
-      { key: 'haccz', label: 'H-Axis Akselerasi Z', unit: 'g' },
+      { key: 'noise_db',    label: 'Kebisingan',        unit: 'dB' },
+      { key: 'water_flow',  label: 'Aliran Air',         unit: 'L/min' },
+      { key: 'air_flow',    label: 'Aliran Udara',       unit: 'm³/h' },
+      { key: 'gaccx',       label: 'G-Axis Akselerasi X', unit: 'g' },
+      { key: 'outlet_temp', label: 'Suhu Outlet',         unit: '°C' },
     ],
   },
 ];

@@ -8,27 +8,21 @@ import tensorflow as tf
 from .base import BasePredictor
 
 
-COMPONENTS = ["bearings", "wpump", "radiator", "exvalve"]
+COMPONENTS = ["bearings"]
 
 COMPONENT_LABELS = {
     "bearings": {"fault": "Noisy", "ok": "Ok"},
-    "wpump":    {"fault": "Noisy", "ok": "Ok"},
-    "radiator": {"fault": "Dirty", "ok": "Clean"},
-    "exvalve":  {"fault": "Dirty", "ok": "Clean"},
 }
 
 COMPONENT_NAME_ID = {
     "bearings": "Bearing",
-    "wpump":    "Water Pump",
-    "radiator": "Radiator",
-    "exvalve":  "Exhaust Valve",
 }
 
 _RISK_ORDER = ["very_low", "low", "medium", "high", "critical"]
 
 
 class CompressorPredictor(BasePredictor):
-    """Hybrid DNN-SVM predictor untuk mesin kompresor (4 komponen)."""
+    """Hybrid DNN-SVM predictor untuk mesin kompresor — komponen bearing."""
 
     _bundles: dict = {}
     _extractors: dict = {}
@@ -191,44 +185,20 @@ class CompressorPredictor(BasePredictor):
         return {"risk_level": risk_level, "priority": priority, "predicted_days": days, "due_date": due_date}
 
     def _build_aggregate_recommendation(self, faulty_components, components):
-        count = len(faulty_components)
-
-        if count == 0:
+        if not faulty_components:
             return (
-                "Semua komponen dalam kondisi baik. "
+                "Bearing dalam kondisi baik. "
                 "Lanjutkan operasi dan jadwalkan maintenance rutin."
             )
-        if count >= 4:
-            return (
-                "Semua komponen terindikasi fault. "
-                "Hentikan operasi dan lakukan pemeriksaan serta maintenance total segera."
-            )
 
-        names = [COMPONENT_NAME_ID.get(c, c) for c in faulty_components]
-
-        if count == 1:
-            comp = components[faulty_components[0]]
-            risk = comp["risk_level"]
-            urgency = (
-                "Lakukan pemeriksaan dan tindakan perbaikan segera." if risk == "critical"
-                else "Disarankan pemeriksaan dalam 7 hari ke depan." if risk == "high"
-                else "Disarankan pemeriksaan dalam 30 hari ke depan."
-            )
-            return f"Komponen {names[0]} terindikasi fault. {urgency}"
-
-        label = (f"{names[0]} dan {names[1]}" if count == 2
-                 else f"{names[0]}, {names[1]}, dan {names[2]}")
-
-        worst_risk = max(
-            (components[c]["risk_level"] for c in faulty_components),
-            key=lambda r: _RISK_ORDER.index(r) if r in _RISK_ORDER else 0,
+        comp = components["bearings"]
+        risk = comp["risk_level"]
+        urgency = (
+            "Lakukan pemeriksaan dan tindakan perbaikan segera." if risk == "critical"
+            else "Disarankan pemeriksaan dalam 7 hari ke depan." if risk == "high"
+            else "Disarankan pemeriksaan dalam 30 hari ke depan."
         )
-        action = (
-            "Hentikan operasi dan lakukan pemeriksaan segera pada komponen tersebut." if worst_risk == "critical"
-            else "Disarankan pemeriksaan kedua komponen dalam 7 hari ke depan." if worst_risk == "high"
-            else "Disarankan pemeriksaan komponen tersebut dalam 30 hari ke depan."
-        )
-        return f"Komponen {label} terindikasi fault. {action}"
+        return f"Komponen Bearing terindikasi fault. {urgency}"
 
     def _worst_risk(self, components):
         worst = max(

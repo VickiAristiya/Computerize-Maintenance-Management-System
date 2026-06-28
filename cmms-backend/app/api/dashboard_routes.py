@@ -18,16 +18,13 @@ def _sensor_to_payload(sensor_data):
 
 COMPONENT_LABELS = {
     "bearings": "Bearing",
-    "wpump": "Water Pump",
-    "radiator": "Radiator",
-    "exvalve": "Exhaust Valve",
 }
 
 PRIORITY_ORDER = {'critical': 4, 'high': 3, 'medium': 2, 'low': 1, 'very_low': 0}
 
 
 def get_predictive_maintenance_notifications():
-    """Notifikasi predictive maintenance untuk semua 4 komponen per asset."""
+    """Notifikasi predictive maintenance untuk komponen bearing per asset."""
     notifications = []
 
     if not predictor.is_ready():
