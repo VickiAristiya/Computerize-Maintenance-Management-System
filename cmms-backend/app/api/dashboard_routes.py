@@ -16,6 +16,14 @@ def _sensor_to_payload(sensor_data):
     payload["demo_mode"] = getattr(sensor_data, "demo_mode", None)
     return payload
 
+
+def _get_latest_valid_sensor(asset):
+    """Cari sensor data terbaru yang memiliki semua feature lengkap (tidak None)."""
+    for sensor in SensorData.objects(asset=asset).order_by('-timestamp').limit(50):
+        if all(getattr(sensor, col, None) is not None for col in predictor.feature_columns):
+            return sensor
+    return None
+
 COMPONENT_LABELS = {
     "bearings": "Bearing",
 }
@@ -34,7 +42,7 @@ def get_predictive_maintenance_notifications():
         assets = Asset.objects()
 
         for asset in assets:
-            latest_sensor = SensorData.objects(asset=asset).order_by('-timestamp').first()
+            latest_sensor = _get_latest_valid_sensor(asset)
             if not latest_sensor:
                 continue
 

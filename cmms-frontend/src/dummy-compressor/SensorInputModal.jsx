@@ -157,6 +157,7 @@ export default function SensorInputModal({ isOpen, onClose, machineId, onPredict
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [prediction, setPrediction]     = useState(null);
   const [error, setError]               = useState(null);
+  const bodyRef = React.useRef(null);
 
   // Reset saat modal dibuka
   useEffect(() => {
@@ -226,6 +227,7 @@ export default function SensorInputModal({ isOpen, onClose, machineId, onPredict
       const pred = response.data.prediction;
       setPrediction(pred);
       if (onPredictionResult) onPredictionResult(pred);
+      setTimeout(() => bodyRef.current?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
     } catch {
       setError('Gagal mengirim data sensor. Pastikan backend berjalan.');
     } finally {
@@ -258,7 +260,7 @@ export default function SensorInputModal({ isOpen, onClose, machineId, onPredict
         </div>
 
         {/* ── Scrollable body ─────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+        <div ref={bodyRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
 
           {/* Template selector */}
           <div>
@@ -296,7 +298,7 @@ export default function SensorInputModal({ isOpen, onClose, machineId, onPredict
               </div>
 
               {/* Komponen bearing */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 {prediction.components && Object.entries(prediction.components).map(([key, comp]) => (
                   <ComponentBadge
                     key={key}

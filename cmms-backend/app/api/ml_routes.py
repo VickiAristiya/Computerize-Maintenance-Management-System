@@ -25,6 +25,14 @@ def _sensor_to_payload(sensor_data):
     return payload
 
 
+def _get_latest_valid_sensor(asset):
+    """Cari sensor data terbaru yang memiliki semua feature lengkap (tidak None)."""
+    for sensor in SensorData.objects(asset=asset).order_by("-timestamp").limit(50):
+        if all(getattr(sensor, col, None) is not None for col in predictor.feature_columns):
+            return sensor
+    return None
+
+
 def _run_prediction(payload):
     try:
         result = predictor.predict(payload)
@@ -80,9 +88,9 @@ def predict_maintenance(machine_id):
             f"Mesin '{asset.machine_id}' belum memiliki model ML yang terdaftar.", 404
         )
 
-    latest_sensor = SensorData.objects(asset=asset).order_by("-timestamp").first()
+    latest_sensor = _get_latest_valid_sensor(asset)
     if not latest_sensor:
-        return _error_response("No sensor data available for this asset", 404)
+        return _error_response("No complete sensor data available for this asset", 404)
 
     # Bangun payload sesuai feature_columns predictor mesin ini
     payload = {col: getattr(latest_sensor, col, None) for col in asset_predictor.feature_columns}
@@ -118,12 +126,12 @@ def get_all_predictions():
     skipped = []
 
     for asset in Asset.objects():
-        latest_sensor = SensorData.objects(asset=asset).order_by("-timestamp").first()
+        latest_sensor = _get_latest_valid_sensor(asset)
         if not latest_sensor:
             skipped.append({
                 "asset_id": str(asset.id),
                 "asset_name": asset.name,
-                "reason": "No sensor data",
+                "reason": "No complete sensor data",
             })
             continue
 

@@ -190,7 +190,7 @@ export default function MLNotificationDetailModal({ notification, onClose }) {
                 <h3 className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   Kondisi Komponen
                 </h3>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   {prediction.components && Object.entries(prediction.components).map(([key, comp]) => (
                     <ComponentCard key={key} compKey={key} comp={comp} />
                   ))}

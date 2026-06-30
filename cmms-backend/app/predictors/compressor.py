@@ -54,11 +54,12 @@ class CompressorPredictor(BasePredictor):
 
     def validate_payload(self, payload):
         self._ensure_loaded()
-        missing = [col for col in self.feature_columns if col not in payload]
+        missing = [col for col in self.feature_columns
+                   if col not in payload or payload[col] is None]
         invalid = []
         values = {}
         for col in self.feature_columns:
-            if col not in payload:
+            if col not in payload or payload[col] is None:
                 continue
             try:
                 values[col] = float(payload[col])
