@@ -4,7 +4,7 @@ import api, { BASE_URL } from '../services/api';
 import {
     FileWarning, History, CalendarCheck, Wrench, HardDrive,
     Eye, X, User, CheckCircle2, AlertTriangle, Image as ImageIcon, FileText,
-    Download, FileDown
+    Download, FileDown, Search, ArrowUpDown
 } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
@@ -21,6 +21,12 @@ export default function MaintenanceHistoryPage() {
 
   // State untuk Zoom Gambar Fullscreen
   const [viewImage, setViewImage] = useState(null);
+
+  // Search, Sort & Filter
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortKey, setSortKey] = useState('date_desc');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -70,6 +76,24 @@ export default function MaintenanceHistoryPage() {
 
   if (error) return <ErrorState message={error} />;
 
+  const displayedHistory = history
+    .filter(wo => {
+      const q = searchTerm.toLowerCase();
+      const matchSearch = (wo.title || '').toLowerCase().includes(q) ||
+        (wo.asset_name || '').toLowerCase().includes(q) ||
+        (wo.assigned_to || '').toLowerCase().includes(q);
+      const matchType = typeFilter === 'all' || wo.type === typeFilter;
+      const matchPriority = priorityFilter === 'all' || wo.priority === priorityFilter;
+      return matchSearch && matchType && matchPriority;
+    })
+    .sort((a, b) => {
+      if (sortKey === 'title_asc') return (a.title || '').localeCompare(b.title || '');
+      if (sortKey === 'title_desc') return (b.title || '').localeCompare(a.title || '');
+      if (sortKey === 'date_asc') return new Date(a.completed_at) - new Date(b.completed_at);
+      if (sortKey === 'date_desc') return new Date(b.completed_at) - new Date(a.completed_at);
+      return 0;
+    });
+
   return (
     <div>
       {/* Header */}
@@ -100,6 +124,54 @@ export default function MaintenanceHistoryPage() {
         </div>
       </div>
       
+      {/* Search & Filter Bar */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari judul, aset, atau teknisi..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            />
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ArrowUpDown size={15} className="text-slate-400" />
+            <select
+              value={sortKey}
+              onChange={e => setSortKey(e.target.value)}
+              className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            >
+              <option value="date_desc">Terbaru</option>
+              <option value="date_asc">Terlama</option>
+              <option value="title_asc">Judul A→Z</option>
+              <option value="title_desc">Judul Z→A</option>
+            </select>
+          </div>
+          <select
+            value={typeFilter}
+            onChange={e => setTypeFilter(e.target.value)}
+            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white shrink-0"
+          >
+            <option value="all">Semua Tipe</option>
+            <option value="preventive">Preventive</option>
+            <option value="corrective">Corrective</option>
+          </select>
+          <select
+            value={priorityFilter}
+            onChange={e => setPriorityFilter(e.target.value)}
+            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white shrink-0"
+          >
+            <option value="all">Semua Prioritas</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+      </div>
+
       {/* Tabel Riwayat */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {loading && <LoadingState />}
@@ -131,20 +203,26 @@ export default function MaintenanceHistoryPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {history.length === 0 && (
+                {displayedHistory.length === 0 && (
                   <tr>
                     <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
                       <div className="flex flex-col items-center gap-3">
                         <div className="p-3 bg-slate-100 rounded-full">
                             <FileWarning size={32} className="text-slate-400" />
                         </div>
-                        <p className="font-medium">Belum ada riwayat perawatan.</p>
-                        <p className="text-sm">Work Order yang statusnya "Completed" akan muncul di sini.</p>
+                        {history.length === 0 ? (
+                          <>
+                            <p className="font-medium">Belum ada riwayat perawatan.</p>
+                            <p className="text-sm">Work Order yang statusnya "Completed" akan muncul di sini.</p>
+                          </>
+                        ) : (
+                          <p className="font-medium">Tidak ada hasil untuk pencarian ini.</p>
+                        )}
                       </div>
                     </td>
                   </tr>
                 )}
-                {history.map(wo => (
+                {displayedHistory.map(wo => (
                   <tr key={wo.id} className="hover:bg-slate-50 transition-colors">
                     
                     {/* Judul */}

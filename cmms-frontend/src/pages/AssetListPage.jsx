@@ -1,7 +1,7 @@
 // src/pages/AssetListPage.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FileWarning, PackagePlus, HardDrive, MapPin, Activity, Settings, Edit, Trash2, Image as ImageIcon, X } from 'lucide-react';
+import { FileWarning, PackagePlus, HardDrive, MapPin, Activity, Settings, Edit, Trash2, Image as ImageIcon, X, Search, ArrowUpDown } from 'lucide-react';
 import AssetForm from './AssetForm.jsx';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
@@ -18,6 +18,11 @@ export default function AssetListPage() {
 
   // State untuk Zoom Gambar
   const [viewImage, setViewImage] = useState(null);
+
+  // Search, Sort & Filter
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortKey, setSortKey] = useState('name_asc');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const fetchAssets = async () => {
     setLoading(true);
@@ -90,6 +95,21 @@ export default function AssetListPage() {
     return <ErrorState message={error} />;
   }
 
+  const displayedAssets = assets
+    .filter(asset => {
+      const q = searchTerm.toLowerCase();
+      const matchSearch = asset.name.toLowerCase().includes(q) ||
+        (asset.machine_id || '').toLowerCase().includes(q) ||
+        (asset.location || '').toLowerCase().includes(q);
+      const matchStatus = statusFilter === 'all' || asset.status === statusFilter;
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => {
+      if (sortKey === 'name_asc') return a.name.localeCompare(b.name);
+      if (sortKey === 'name_desc') return b.name.localeCompare(a.name);
+      return 0;
+    });
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -105,9 +125,49 @@ export default function AssetListPage() {
         </button>
       </div>
       
+      {/* Search & Filter Bar */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari nama mesin, ID, atau lokasi..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            />
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ArrowUpDown size={15} className="text-slate-400" />
+            <select
+              value={sortKey}
+              onChange={e => setSortKey(e.target.value)}
+              className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            >
+              <option value="name_asc">Nama A→Z</option>
+              <option value="name_desc">Nama Z→A</option>
+            </select>
+          </div>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white shrink-0"
+          >
+            <option value="all">Semua Status</option>
+            <option value="running">Berjalan</option>
+            <option value="idle">Menganggur</option>
+            <option value="maintenance">Perawatan</option>
+            <option value="breakdown">Rusak</option>
+            <option value="warning">Peringatan</option>
+            <option value="off">Mati</option>
+          </select>
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {loading && <LoadingState />}
-        
+
         {!loading && (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200">
@@ -134,20 +194,26 @@ export default function AssetListPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {assets.length === 0 && (
+                {displayedAssets.length === 0 && (
                   <tr>
                     <td colSpan="7" className="px-6 py-12 text-center text-slate-500">
                       <div className="flex flex-col items-center gap-3">
                         <div className="p-3 bg-slate-100 rounded-full">
                             <FileWarning size={32} className="text-slate-400" />
                         </div>
-                        <p className="font-medium">Belum ada data aset.</p>
-                        <p className="text-sm">Silakan tambahkan aset baru untuk memulai.</p>
+                        {assets.length === 0 ? (
+                          <>
+                            <p className="font-medium">Belum ada data aset.</p>
+                            <p className="text-sm">Silakan tambahkan aset baru untuk memulai.</p>
+                          </>
+                        ) : (
+                          <p className="font-medium">Tidak ada hasil untuk pencarian ini.</p>
+                        )}
                       </div>
                     </td>
                   </tr>
                 )}
-                {assets.map(asset => (
+                {displayedAssets.map(asset => (
                   <tr key={asset.id} className="hover:bg-slate-50 transition-colors group">
                     
                     {/* Foto Thumbnail (Klik untuk Zoom) */}

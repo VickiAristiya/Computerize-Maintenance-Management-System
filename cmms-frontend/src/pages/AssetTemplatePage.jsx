@@ -1,7 +1,7 @@
 // src/pages/AssetTemplatePage.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FileWarning, Plus, Loader2, Trash2, ListPlus, Edit, Save } from 'lucide-react'; // Tambah Edit & Save
+import { FileWarning, Plus, Loader2, Trash2, ListPlus, Edit, Save, Search, ArrowUpDown } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import Modal from '../components/Modal.jsx';
@@ -126,6 +126,10 @@ export default function AssetTemplatePage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTemplate, setEditingTemplate] = useState(null);
 
+    // Search & Sort
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortKey, setSortKey] = useState('name_asc');
+
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
@@ -190,6 +194,14 @@ export default function AssetTemplatePage() {
         return <ErrorState message={error} />;
     }
 
+    const displayedTemplates = templates
+      .filter(t => (t.name || '').toLowerCase().includes(searchTerm.toLowerCase()))
+      .sort((a, b) => {
+        if (sortKey === 'name_asc') return a.name.localeCompare(b.name);
+        if (sortKey === 'name_desc') return b.name.localeCompare(a.name);
+        return 0;
+      });
+
     return (
         <div>
             <div className="flex justify-between items-center mb-6">
@@ -206,6 +218,33 @@ export default function AssetTemplatePage() {
                 </button>
             </div>
             
+            {/* Search & Sort Bar */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+              <div className="flex flex-wrap gap-3 items-center">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cari nama template..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <ArrowUpDown size={15} className="text-slate-400" />
+                  <select
+                    value={sortKey}
+                    onChange={e => setSortKey(e.target.value)}
+                    className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  >
+                    <option value="name_asc">Nama A→Z</option>
+                    <option value="name_desc">Nama Z→A</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                     <h2 className="text-lg font-semibold text-slate-800">Daftar Template Tersedia</h2>
@@ -224,17 +263,20 @@ export default function AssetTemplatePage() {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-200">
-                                {templates.length === 0 && (
+                                {displayedTemplates.length === 0 && (
                                     <tr>
                                         <td colSpan="3" className="px-6 py-12 text-center text-slate-500">
                                             <div className="flex flex-col items-center gap-2">
                                                 <FileWarning size={40} className="text-slate-400" />
-                                                <span>Belum ada template yang dibuat.</span>
+                                                {templates.length === 0
+                                                  ? <span>Belum ada template yang dibuat.</span>
+                                                  : <span>Tidak ada hasil untuk pencarian ini.</span>
+                                                }
                                             </div>
                                         </td>
                                     </tr>
                                 )}
-                                {templates.map(item => (
+                                {displayedTemplates.map(item => (
                                     <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{item.name}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">

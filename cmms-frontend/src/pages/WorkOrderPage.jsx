@@ -1,7 +1,7 @@
 // src/pages/WorkOrderPage.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FileWarning, Play, Check, Trash2, Edit, Plus, HardDrive, Image as ImageIcon, X, ShieldCheck, User, ShieldAlert } from 'lucide-react';
+import { FileWarning, Play, Check, Trash2, Edit, Plus, HardDrive, Image as ImageIcon, X, ShieldCheck, User, ShieldAlert, Search, ArrowUpDown } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import WorkOrderForm from './WorkOrderForm.jsx';
@@ -36,6 +36,11 @@ export default function WorkOrderPage() {
   // State Lihat Gambar
   const [isViewImageModalOpen, setIsViewImageModalOpen] = useState(false);
   const [viewingImages, setViewingImages] = useState({ initial: null, evidence: null, title: '' });
+
+  // Search, Sort & Filter
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortKey, setSortKey] = useState('date_desc');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   const fetchData = async () => {
     setLoading(true);
@@ -255,6 +260,22 @@ export default function WorkOrderPage() {
 
   if (error) return <ErrorState message={error} />;
 
+  const displayedWorkOrders = workOrders
+    .filter(wo => {
+      const q = searchTerm.toLowerCase();
+      const matchSearch = (wo.title || '').toLowerCase().includes(q) ||
+        (wo.asset_name || '').toLowerCase().includes(q);
+      const matchStatus = statusFilter === 'all' || wo.status === statusFilter;
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => {
+      if (sortKey === 'title_asc') return (a.title || '').localeCompare(b.title || '');
+      if (sortKey === 'title_desc') return (b.title || '').localeCompare(a.title || '');
+      if (sortKey === 'date_asc') return new Date(a.created_at) - new Date(b.created_at);
+      if (sortKey === 'date_desc') return new Date(b.created_at) - new Date(a.created_at);
+      return 0;
+    });
+
   return (
     <div>
       {/* Header */}
@@ -278,6 +299,46 @@ export default function WorkOrderPage() {
         )}
       </div>
       
+      {/* Search & Filter Bar */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari judul atau nama aset..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            />
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ArrowUpDown size={15} className="text-slate-400" />
+            <select
+              value={sortKey}
+              onChange={e => setSortKey(e.target.value)}
+              className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            >
+              <option value="date_desc">Terbaru</option>
+              <option value="date_asc">Terlama</option>
+              <option value="title_asc">Judul A→Z</option>
+              <option value="title_desc">Judul Z→A</option>
+            </select>
+          </div>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white shrink-0"
+          >
+            <option value="all">Semua Status</option>
+            <option value="pending_approval">Tunggu Persetujuan</option>
+            <option value="open">Open</option>
+            <option value="in_progress">Dikerjakan</option>
+            <option value="pending_verification">Verifikasi</option>
+          </select>
+        </div>
+      </div>
+
       {/* Tabel */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         {loading && <LoadingState />}
@@ -299,17 +360,20 @@ export default function WorkOrderPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {workOrders.length === 0 && (
+                {displayedWorkOrders.length === 0 && (
                   <tr>
                     <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
                         <div className="flex flex-col items-center gap-3">
                             <FileWarning size={32} className="text-slate-400" />
-                            <p>Tidak ada Work Order aktif.</p>
+                            {workOrders.length === 0
+                              ? <p>Tidak ada Work Order aktif.</p>
+                              : <p className="font-medium">Tidak ada hasil untuk pencarian ini.</p>
+                            }
                         </div>
                     </td>
                   </tr>
                 )}
-                {workOrders.map(wo => (
+                {displayedWorkOrders.map(wo => (
                   <tr key={wo.id} className="hover:bg-slate-50 transition-colors">
                     
                     <td className="px-6 py-4 whitespace-nowrap">

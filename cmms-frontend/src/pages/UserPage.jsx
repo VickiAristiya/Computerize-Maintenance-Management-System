@@ -1,7 +1,7 @@
 // src/pages/UserPage.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FileWarning, Plus, Loader2, UserPlus, Mail, Shield, User, Trash2, Edit, Lock } from 'lucide-react';
+import { FileWarning, Plus, Loader2, UserPlus, Mail, Shield, User, Trash2, Edit, Lock, Search, ArrowUpDown } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import Modal from '../components/Modal.jsx'; 
@@ -129,6 +129,11 @@ export default function UserPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
 
+    // Search, Sort & Filter
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortKey, setSortKey] = useState('name_asc');
+    const [roleFilter, setRoleFilter] = useState('all');
+
     useEffect(() => {
         const fetchUsers = async () => {
             setLoading(true);
@@ -200,6 +205,20 @@ export default function UserPage() {
         return <ErrorState message={error} />;
     }
 
+    const displayedUsers = users
+      .filter(user => {
+        const q = searchTerm.toLowerCase();
+        const matchSearch = (user.name || '').toLowerCase().includes(q) ||
+          (user.email || '').toLowerCase().includes(q);
+        const matchRole = roleFilter === 'all' || user.role === roleFilter;
+        return matchSearch && matchRole;
+      })
+      .sort((a, b) => {
+        if (sortKey === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+        if (sortKey === 'name_desc') return (b.name || '').localeCompare(a.name || '');
+        return 0;
+      });
+
     return (
         <div>
             {/* Header & Action */}
@@ -216,9 +235,46 @@ export default function UserPage() {
                 </button>
             </div>
             
+            {/* Search & Filter Bar */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+              <div className="flex flex-wrap gap-3 items-center">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cari nama atau email..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <ArrowUpDown size={15} className="text-slate-400" />
+                  <select
+                    value={sortKey}
+                    onChange={e => setSortKey(e.target.value)}
+                    className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  >
+                    <option value="name_asc">Nama A→Z</option>
+                    <option value="name_desc">Nama Z→A</option>
+                  </select>
+                </div>
+                <select
+                  value={roleFilter}
+                  onChange={e => setRoleFilter(e.target.value)}
+                  className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white shrink-0"
+                >
+                  <option value="all">Semua Role</option>
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="technician">Technician</option>
+                </select>
+              </div>
+            </div>
+
             {/* Tabel Pengguna */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                
+
                 {loading && <LoadingState />}
                 
                 {!loading && (
@@ -233,19 +289,22 @@ export default function UserPage() {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-200">
-                                {users.length === 0 && (
+                                {displayedUsers.length === 0 && (
                                     <tr>
                                         <td colSpan="4" className="px-6 py-12 text-center text-slate-500">
                                             <div className="flex flex-col items-center gap-3">
                                                 <div className="p-3 bg-slate-100 rounded-full">
                                                     <FileWarning size={32} className="text-slate-400" />
                                                 </div>
-                                                <p className="font-medium">Belum ada pengguna terdaftar.</p>
+                                                {users.length === 0
+                                                  ? <p className="font-medium">Belum ada pengguna terdaftar.</p>
+                                                  : <p className="font-medium">Tidak ada hasil untuk pencarian ini.</p>
+                                                }
                                             </div>
                                         </td>
                                     </tr>
                                 )}
-                                {users.map(user => (
+                                {displayedUsers.map(user => (
                                     <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
                                         
                                         <td className="px-6 py-4 whitespace-nowrap">

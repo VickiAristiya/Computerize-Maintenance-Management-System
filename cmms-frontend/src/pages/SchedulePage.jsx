@@ -1,7 +1,7 @@
 // src/pages/SchedulePage.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FileWarning, Trash2, CalendarPlus, Calendar, HardDrive, Repeat, Edit, AlertTriangle, Clock, CheckCircle, ClipboardList } from 'lucide-react';
+import { FileWarning, Trash2, CalendarPlus, Calendar, HardDrive, Repeat, Edit, AlertTriangle, Clock, CheckCircle, ClipboardList, Search, ArrowUpDown } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import ScheduleForm from './ScheduleForm.jsx';
@@ -33,6 +33,10 @@ export default function SchedulePage() {
   // State untuk Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState(null);
+
+  // Search & Sort
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortKey, setSortKey] = useState('date_asc');
 
   // Fungsi untuk mengambil data
   useEffect(() => {
@@ -153,6 +157,20 @@ export default function SchedulePage() {
 
   if (error) return <ErrorState message={error} />;
 
+  const displayedSchedules = schedules
+    .filter(s => {
+      const q = searchTerm.toLowerCase();
+      return (s.task_name || '').toLowerCase().includes(q) ||
+        (s.asset_name || '').toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      if (sortKey === 'name_asc') return (a.task_name || '').localeCompare(b.task_name || '');
+      if (sortKey === 'name_desc') return (b.task_name || '').localeCompare(a.task_name || '');
+      if (sortKey === 'date_asc') return new Date(a.next_due_date) - new Date(b.next_due_date);
+      if (sortKey === 'date_desc') return new Date(b.next_due_date) - new Date(a.next_due_date);
+      return 0;
+    });
+
   return (
     <div>
       {/* Header */}
@@ -169,6 +187,35 @@ export default function SchedulePage() {
               <CalendarPlus size={18} className="mr-2" /> Buat Jadwal Baru
           </button>
         )}
+      </div>
+
+      {/* Search & Sort Bar */}
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari nama tugas atau aset..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+            />
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <ArrowUpDown size={15} className="text-slate-400" />
+            <select
+              value={sortKey}
+              onChange={e => setSortKey(e.target.value)}
+              className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+            >
+              <option value="date_asc">Jadwal Terdekat</option>
+              <option value="date_desc">Jadwal Terjauh</option>
+              <option value="name_asc">Nama A→Z</option>
+              <option value="name_desc">Nama Z→A</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Tabel Daftar Jadwal */}
@@ -198,20 +245,26 @@ export default function SchedulePage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {schedules.length === 0 && (
+                {displayedSchedules.length === 0 && (
                   <tr>
                     <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
                       <div className="flex flex-col items-center gap-3">
                         <div className="p-3 bg-slate-100 rounded-full">
                             <FileWarning size={32} className="text-slate-400" />
                         </div>
-                        <p className="font-medium">Belum ada jadwal perawatan.</p>
-                        <p className="text-sm">Buat jadwal baru untuk memulai preventive maintenance.</p>
+                        {schedules.length === 0 ? (
+                          <>
+                            <p className="font-medium">Belum ada jadwal perawatan.</p>
+                            <p className="text-sm">Buat jadwal baru untuk memulai preventive maintenance.</p>
+                          </>
+                        ) : (
+                          <p className="font-medium">Tidak ada hasil untuk pencarian ini.</p>
+                        )}
                       </div>
                     </td>
                   </tr>
                 )}
-                {schedules.map(s => {
+                {displayedSchedules.map(s => {
                     const dueStatus = getDueStatus(s.next_due_date);
                     
                     return (

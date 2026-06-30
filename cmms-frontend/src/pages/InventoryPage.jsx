@@ -1,7 +1,7 @@
 // src/pages/InventoryPage.jsx
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { FileWarning, Plus, Loader2, Edit, Trash2, PackagePlus, Save, Box, MapPin, Tag } from 'lucide-react';
+import { FileWarning, Plus, Loader2, Edit, Trash2, PackagePlus, Save, Box, MapPin, Tag, Search, ArrowUpDown } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import Modal from '../components/Modal.jsx';
@@ -97,6 +97,11 @@ export default function InventoryPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingComponent, setEditingComponent] = useState(null);
 
+    // Search, Sort & Filter
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortKey, setSortKey] = useState('name_asc');
+    const [stockFilter, setStockFilter] = useState('all');
+
     useEffect(() => {
         const fetchComponents = async () => {
             setLoading(true);
@@ -161,6 +166,26 @@ export default function InventoryPage() {
         return <ErrorState message={error} />;
     }
 
+    const displayedComponents = components
+      .filter(item => {
+        const q = searchTerm.toLowerCase();
+        const matchSearch = item.name.toLowerCase().includes(q) ||
+          (item.part_number || '').toLowerCase().includes(q) ||
+          (item.location || '').toLowerCase().includes(q);
+        const matchStock = stockFilter === 'all' ||
+          (stockFilter === 'empty' && item.stock_quantity === 0) ||
+          (stockFilter === 'low' && item.stock_quantity > 0 && item.stock_quantity < 5) ||
+          (stockFilter === 'available' && item.stock_quantity >= 5);
+        return matchSearch && matchStock;
+      })
+      .sort((a, b) => {
+        if (sortKey === 'name_asc') return a.name.localeCompare(b.name);
+        if (sortKey === 'name_desc') return b.name.localeCompare(a.name);
+        if (sortKey === 'stock_asc') return a.stock_quantity - b.stock_quantity;
+        if (sortKey === 'stock_desc') return b.stock_quantity - a.stock_quantity;
+        return 0;
+      });
+
     return (
         <div>
             {/* Header & Action */}
@@ -180,6 +205,45 @@ export default function InventoryPage() {
                 </div>
             </div>
             
+            {/* Search & Filter Bar */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-4">
+              <div className="flex flex-wrap gap-3 items-center">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cari nama, part number, atau lokasi..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <ArrowUpDown size={15} className="text-slate-400" />
+                  <select
+                    value={sortKey}
+                    onChange={e => setSortKey(e.target.value)}
+                    className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  >
+                    <option value="name_asc">Nama A→Z</option>
+                    <option value="name_desc">Nama Z→A</option>
+                    <option value="stock_desc">Stok Terbanyak</option>
+                    <option value="stock_asc">Stok Tersedikit</option>
+                  </select>
+                </div>
+                <select
+                  value={stockFilter}
+                  onChange={e => setStockFilter(e.target.value)}
+                  className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white shrink-0"
+                >
+                  <option value="all">Semua Stok</option>
+                  <option value="available">Tersedia (≥5)</option>
+                  <option value="low">Stok Rendah (1–4)</option>
+                  <option value="empty">Habis (0)</option>
+                </select>
+              </div>
+            </div>
+
             {/* Tabel Inventaris */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                 {loading && <LoadingState />}
@@ -203,20 +267,26 @@ export default function InventoryPage() {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-slate-200">
-                                {components.length === 0 && (
+                                {displayedComponents.length === 0 && (
                                     <tr>
                                         <td colSpan="5" className="px-6 py-12 text-center text-slate-500">
                                             <div className="flex flex-col items-center gap-3">
                                                 <div className="p-3 bg-slate-100 rounded-full">
                                                     <FileWarning size={32} className="text-slate-400" />
                                                 </div>
-                                                <p className="font-medium">Gudang kosong.</p>
-                                                <p className="text-sm">Mulai dengan menambahkan komponen baru.</p>
+                                                {components.length === 0 ? (
+                                                  <>
+                                                    <p className="font-medium">Gudang kosong.</p>
+                                                    <p className="text-sm">Mulai dengan menambahkan komponen baru.</p>
+                                                  </>
+                                                ) : (
+                                                  <p className="font-medium">Tidak ada hasil untuk pencarian ini.</p>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
                                 )}
-                                {components.map(item => (
+                                {displayedComponents.map(item => (
                                     <tr key={item.id} className="hover:bg-slate-50 transition-colors group">
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">{item.name}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">{item.part_number || '-'}</td>
