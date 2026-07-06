@@ -52,6 +52,7 @@ data excell.xlsx
 *.xlsx
 *.docx
 *.sql
+*.csv
 
 # Script development di root (tidak dipakai aplikasi)
 analyze_templates.py
@@ -62,3 +63,5 @@ mongodb_sample_data.json
 
 # Simulasi Version 1 sudah digantikan oleh Version 2
 Simulasi/Version 1/
+simulate_manual_scenarios.py
+simulate_sensor_data.py

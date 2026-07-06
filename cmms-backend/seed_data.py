@@ -33,16 +33,22 @@ def create_dummy_data():
         technician.set_password('password123')
         technician.save()
 
-        # Inventory components
+        # Inventory components — disesuaikan dengan 5 mesin: Induksi, Forging, Robot, Motor AC, Compressor
         components_data = [
-            {'name': 'Hydraulic Pump', 'part_number': 'HP-1001', 'stock_quantity': 8, 'location': 'Gudang Utama'},
-            {'name': 'Filter Cartridge', 'part_number': 'FC-4300', 'stock_quantity': 3, 'location': 'Gudang Utama'},
-            {'name': 'Belt Drive', 'part_number': 'BD-2204', 'stock_quantity': 15, 'location': 'Gudang Cabang'},
-            {'name': 'Lubricant Oil', 'part_number': 'LO-2122', 'stock_quantity': 25, 'location': 'Gudang Utama'},
-            {'name': 'Sensor Module', 'part_number': 'SM-9800', 'stock_quantity': 2, 'location': 'Gudang Sisi'},
-            {'name': 'Bearing Set', 'part_number': 'BS-5567', 'stock_quantity': 5, 'location': 'Gudang Utama'},
-            {'name': 'Fan Blades', 'part_number': 'FB-3302', 'stock_quantity': 12, 'location': 'Gudang Cabang'},
-            {'name': 'Pressure Valve', 'part_number': 'PV-7711', 'stock_quantity': 4, 'location': 'Gudang Utama'},
+            {'name': 'Kumparan Induksi',        'part_number': 'IC-1001', 'stock_quantity': 2,  'location': 'Gudang Utama'},
+            {'name': 'Capacitor Bank',           'part_number': 'CB-2050', 'stock_quantity': 4,  'location': 'Gudang Utama'},
+            {'name': 'Pompa Air Pendingin',      'part_number': 'CWP-3010', 'stock_quantity': 5, 'location': 'Gudang Cabang'},
+            {'name': 'Die Set Forging',          'part_number': 'FD-4400', 'stock_quantity': 3,  'location': 'Gudang Utama'},
+            {'name': 'Hydraulic Cylinder',       'part_number': 'HC-5500', 'stock_quantity': 4,  'location': 'Gudang Utama'},
+            {'name': 'Guide Bushing',            'part_number': 'GB-6600', 'stock_quantity': 10, 'location': 'Gudang Cabang'},
+            {'name': 'Servo Motor',              'part_number': 'SVM-7700', 'stock_quantity': 3, 'location': 'Gudang Sisi'},
+            {'name': 'Encoder Module',           'part_number': 'ENC-8800', 'stock_quantity': 6, 'location': 'Gudang Sisi'},
+            {'name': 'Robot Gripper',            'part_number': 'GRP-9900', 'stock_quantity': 4, 'location': 'Gudang Sisi'},
+            {'name': 'Winding Motor AC',         'part_number': 'AMW-1100', 'stock_quantity': 2, 'location': 'Gudang Utama'},
+            {'name': 'Bearing Motor',            'part_number': 'MB-1200', 'stock_quantity': 8,  'location': 'Gudang Utama'},
+            {'name': 'Fan Blade Pendingin',      'part_number': 'CFB-1300', 'stock_quantity': 12, 'location': 'Gudang Cabang'},
+            {'name': 'Air Filter Compressor',    'part_number': 'CAF-1400', 'stock_quantity': 6, 'location': 'Gudang Utama'},
+            {'name': 'Bearing Set Compressor',   'part_number': 'CBS-1500', 'stock_quantity': 5, 'location': 'Gudang Utama'},
         ]
         components = []
         for item in components_data:
@@ -53,78 +59,116 @@ def create_dummy_data():
             }, name=item['name'])
             components.append(comp)
 
+        # Index komponen untuk kemudahan referensi
+        (kumparan_induksi, capacitor_bank, pompa_air, die_set, hydraulic_cylinder,
+         guide_bushing, servo_motor, encoder_module, robot_gripper,
+         winding_motor, bearing_motor, fan_blade, air_filter_comp, bearing_comp) = components
+
         # Asset templates
-        press_template = safe_save(AssetTemplate, {
-            'components': [components[0], components[1], components[3]]
-        }, name='Press Machine')
+        induksi_template = safe_save(AssetTemplate, {
+            'components': [kumparan_induksi, capacitor_bank, pompa_air]
+        }, name='Mesin Induksi')
 
-        cnc_template = safe_save(AssetTemplate, {
-            'components': [components[4], components[5], components[7]]
-        }, name='CNC Milling Machine')
+        forging_template = safe_save(AssetTemplate, {
+            'components': [die_set, hydraulic_cylinder, guide_bushing]
+        }, name='Mesin Forging')
 
-        conveyor_template = safe_save(AssetTemplate, {
-            'components': [components[2], components[3], components[6]]
-        }, name='Packaging Conveyor')
+        robot_template = safe_save(AssetTemplate, {
+            'components': [servo_motor, encoder_module, robot_gripper]
+        }, name='Robot Industri')
 
-        # Assets
-        press_asset = safe_save(Asset, {
-            'machine_id': 'PR-001',
-            'location': 'Line Produksi A',
+        motor_ac_template = safe_save(AssetTemplate, {
+            'components': [winding_motor, bearing_motor, fan_blade]
+        }, name='Motor AC')
+
+        compressor_template = safe_save(AssetTemplate, {
+            'components': [air_filter_comp, bearing_comp, pompa_air]
+        }, name='Compressor')
+
+        # Assets — 4 mesin utama + 1 compressor
+        induksi_asset = safe_save(Asset, {
+            'machine_id': 'IND-001',
+            'location': 'Line Peleburan A',
             'status': 'running',
-            'components': [components[0], components[1], components[3]]
-        }, name='Press Mesin A1')
+            'components': [kumparan_induksi, capacitor_bank, pompa_air]
+        }, name='Mesin Induksi I1')
 
-        cnc_asset = safe_save(Asset, {
-            'machine_id': 'CNC-002',
-            'location': 'Workshop B',
+        forging_asset = safe_save(Asset, {
+            'machine_id': 'FRG-002',
+            'location': 'Line Tempa B',
             'status': 'down',
-            'components': [components[4], components[5], components[7]]
-        }, name='CNC Milling B2')
+            'components': [die_set, hydraulic_cylinder, guide_bushing]
+        }, name='Mesin Forging F2')
 
-        conveyor_asset = safe_save(Asset, {
-            'machine_id': 'CV-003',
-            'location': 'Line Packing C',
+        robot_asset = safe_save(Asset, {
+            'machine_id': 'ROB-003',
+            'location': 'Line Perakitan C',
             'status': 'running',
-            'components': [components[2], components[3], components[6]]
-        }, name='Conveyor C3')
+            'components': [servo_motor, encoder_module, robot_gripper]
+        }, name='Robot Welding R3')
+
+        motor_ac_asset = safe_save(Asset, {
+            'machine_id': 'MTR-004',
+            'location': 'Ruang Utilitas D',
+            'status': 'running',
+            'components': [winding_motor, bearing_motor, fan_blade]
+        }, name='Motor AC Blower M4')
+
+        # machine_id CMP-DUMMY-001 dipakai oleh ml_registry.py (CompressorPredictor) — jangan diubah
+        compressor_asset = safe_save(Asset, {
+            'machine_id': 'CMP-DUMMY-001',
+            'location': 'Ruang Kompresor E',
+            'status': 'running',
+            'components': [air_filter_comp, bearing_comp, pompa_air]
+        }, name='Compressor Bearing C5')
 
         # Work orders
         now = datetime.datetime.utcnow()
         work_orders_data = [
             {
-                'title': 'Perbaikan kebocoran oli hidrolik',
-                'description': 'Periksa dan ganti seal pada hydraulic pump.',
+                'title': 'Perbaikan isolasi kumparan induksi retak',
+                'description': (
+                    'Isolasi pada kumparan induksi menunjukkan tanda keretakan akibat panas '
+                    'berlebih saat proses peleburan. Dilakukan penggantian lapisan isolasi dan '
+                    'pengujian tahanan isolasi (megger test) hingga kembali sesuai standar.'
+                ),
                 'status': 'open',
                 'priority': 'high',
                 'type': 'repair',
-                'component': components[0],
-                'asset': press_asset,
+                'component': kumparan_induksi,
+                'asset': induksi_asset,
                 'assigned_to': technician,
                 'created_by_role': 'manager',
                 'created_at': now - datetime.timedelta(days=1),
                 'due_date': now + datetime.timedelta(days=2),
             },
             {
-                'title': 'Penggantian sensor modul suhu',
-                'description': 'Sensor modul suhu menunjukkan pembacaan tidak stabil.',
+                'title': 'Penggantian encoder robot akibat drift posisi',
+                'description': (
+                    'Robot welding R3 menunjukkan drift posisi pada sumbu 4 sebesar 0,8mm, '
+                    'menyebabkan hasil las tidak presisi. Encoder module diduga aus dan perlu diganti.'
+                ),
                 'status': 'in_progress',
                 'priority': 'medium',
                 'type': 'repair',
-                'component': components[4],
-                'asset': cnc_asset,
+                'component': encoder_module,
+                'asset': robot_asset,
                 'assigned_to': technician,
                 'created_by_role': 'manager',
                 'created_at': now - datetime.timedelta(days=3),
                 'due_date': now + datetime.timedelta(days=1),
             },
             {
-                'title': 'Verifikasi perbaikan belt conveyor',
-                'description': 'Periksa hasil penggantian belt drive pada conveyor.',
+                'title': 'Verifikasi perbaikan hydraulic cylinder forging',
+                'description': (
+                    'Periksa hasil penggantian seal hydraulic cylinder pada mesin forging F2 '
+                    'setelah ditemukan kebocoran oli saat proses penempaan.'
+                ),
                 'status': 'pending_verification',
                 'priority': 'high',
                 'type': 'inspection',
-                'component': components[2],
-                'asset': conveyor_asset,
+                'component': hydraulic_cylinder,
+                'asset': forging_asset,
                 'assigned_to': technician,
                 'created_by_role': 'admin',
                 'created_at': now - datetime.timedelta(days=5),
@@ -132,13 +176,16 @@ def create_dummy_data():
                 'completed_at': now - datetime.timedelta(days=1),
             },
             {
-                'title': 'Pengecekan preventif motor',
-                'description': 'Pemeriksaan rutin motor press untuk mencegah kerusakan.',
+                'title': 'Pengecekan preventif bearing motor AC',
+                'description': (
+                    'Pemeriksaan rutin bearing motor AC blower M4 untuk mencegah keausan dini '
+                    'dan memastikan getaran motor tetap dalam batas normal.'
+                ),
                 'status': 'completed',
                 'priority': 'low',
                 'type': 'preventive',
-                'component': components[5],
-                'asset': press_asset,
+                'component': bearing_motor,
+                'asset': motor_ac_asset,
                 'assigned_to': technician,
                 'created_by_role': 'admin',
                 'created_at': now - datetime.timedelta(days=10),
@@ -166,42 +213,57 @@ def create_dummy_data():
                 ).save()
             work_orders.append(wo)
 
-        # Assign maintenance history to asset
-        press_asset.maintenance_history = [wo for wo in work_orders if wo.asset == press_asset]
-        press_asset.save()
-        cnc_asset.maintenance_history = [wo for wo in work_orders if wo.asset == cnc_asset]
-        cnc_asset.save()
-        conveyor_asset.maintenance_history = [wo for wo in work_orders if wo.asset == conveyor_asset]
-        conveyor_asset.save()
+        # Assign maintenance history ke masing-masing asset
+        for asset in (induksi_asset, forging_asset, robot_asset, motor_ac_asset, compressor_asset):
+            asset.maintenance_history = [wo for wo in work_orders if wo.asset == asset]
+            asset.save()
 
         # Maintenance schedules
         schedule_data = [
             {
-                'asset': press_asset,
-                'task_name': 'Ganti oli hidrolik',
+                'asset': induksi_asset,
+                'task_name': 'Megger test isolasi kumparan induksi',
                 'frequency': 'monthly',
                 'frequency_days': 30,
                 'next_due_date': now + datetime.timedelta(days=3),
-                'description_template': 'Ganti oli hidrolik dan periksa kebocoran.',
-                'component': 'Lubricant Oil'
+                'description_template': 'Uji tahanan isolasi kumparan dan periksa capacitor bank.',
+                'component': 'Kumparan Induksi'
             },
             {
-                'asset': cnc_asset,
-                'task_name': 'Kalibrasi sensor temperatur',
+                'asset': forging_asset,
+                'task_name': 'Inspeksi keausan die set forging',
                 'frequency': 'bi-weekly',
                 'frequency_days': 14,
                 'next_due_date': now + datetime.timedelta(days=6),
-                'description_template': 'Kalibrasi ulang semua sensor suhu.',
-                'component': 'Sensor Module'
+                'description_template': 'Periksa keretakan dan keausan permukaan die set.',
+                'component': 'Die Set Forging'
             },
             {
-                'asset': conveyor_asset,
-                'task_name': 'Periksa belt conveyor',
+                'asset': robot_asset,
+                'task_name': 'Kalibrasi ulang TCP robot',
                 'frequency': 'weekly',
                 'frequency_days': 7,
                 'next_due_date': now + datetime.timedelta(days=2),
-                'description_template': 'Periksa kondisi belt dan pengencangan.',
-                'component': 'Belt Drive'
+                'description_template': 'Kalibrasi Tool Center Point dan periksa akurasi servo motor.',
+                'component': 'Servo Motor'
+            },
+            {
+                'asset': motor_ac_asset,
+                'task_name': 'Pengukuran getaran & suhu motor AC',
+                'frequency': 'weekly',
+                'frequency_days': 7,
+                'next_due_date': now + datetime.timedelta(days=4),
+                'description_template': 'Ukur getaran bearing dan suhu winding motor AC.',
+                'component': 'Bearing Motor'
+            },
+            {
+                'asset': compressor_asset,
+                'task_name': 'Pemeriksaan bearing & filter compressor',
+                'frequency': 'weekly',
+                'frequency_days': 7,
+                'next_due_date': now + datetime.timedelta(days=5),
+                'description_template': 'Periksa kondisi bearing, air filter, dan aliran air pendingin.',
+                'component': 'Bearing Set Compressor'
             },
         ]
         for item in schedule_data:
@@ -218,25 +280,39 @@ def create_dummy_data():
         # Compliance logs
         compliance_data = [
             {
-                'asset': press_asset,
+                'asset': induksi_asset,
                 'regulation_name': 'ISO 9001 Audit',
                 'status': 'pending',
                 'next_check_due': now + datetime.timedelta(days=5),
-                'evidence_document_url': 'https://example.com/evidence/iso9001-press'
+                'evidence_document_url': 'https://example.com/evidence/iso9001-induksi'
             },
             {
-                'asset': cnc_asset,
+                'asset': forging_asset,
                 'regulation_name': 'Inspection K3',
                 'status': 'completed',
                 'next_check_due': now + datetime.timedelta(days=12),
-                'evidence_document_url': 'https://example.com/evidence/k3-cnc'
+                'evidence_document_url': 'https://example.com/evidence/k3-forging'
             },
             {
-                'asset': conveyor_asset,
-                'regulation_name': 'Pemeriksaan Lingkungan',
+                'asset': robot_asset,
+                'regulation_name': 'Sertifikasi Keselamatan Robot',
                 'status': 'pending',
                 'next_check_due': now + datetime.timedelta(days=8),
-                'evidence_document_url': 'https://example.com/evidence/env-conveyor'
+                'evidence_document_url': 'https://example.com/evidence/safety-robot'
+            },
+            {
+                'asset': motor_ac_asset,
+                'regulation_name': 'Pemeriksaan Kelistrikan',
+                'status': 'pending',
+                'next_check_due': now + datetime.timedelta(days=9),
+                'evidence_document_url': 'https://example.com/evidence/listrik-motor-ac'
+            },
+            {
+                'asset': compressor_asset,
+                'regulation_name': 'Pemeriksaan Lingkungan',
+                'status': 'completed',
+                'next_check_due': now + datetime.timedelta(days=14),
+                'evidence_document_url': 'https://example.com/evidence/env-compressor'
             },
         ]
         for item in compliance_data:
@@ -248,7 +324,8 @@ def create_dummy_data():
                 evidence_document_url=item['evidence_document_url']
             ).save()
 
-        print('Seed dummy data selesai. Database sekarang berisi aset, komponen, template, WO, jadwal, compliance, dan users.')
+        print('Seed dummy data selesai. Database sekarang berisi 5 aset (Mesin Induksi, Mesin Forging, '
+              'Robot, Motor AC, Compressor), komponen, template, WO, jadwal, compliance, dan users.')
 
 
 if __name__ == '__main__':

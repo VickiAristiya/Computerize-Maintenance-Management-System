@@ -43,279 +43,312 @@ IMG_AFTER_BLUE    = _svg_b64("#2563eb", "Kondisi Selesai / Terpasang")
 # Work order definitions
 # ---------------------------------------------------------------------------
 
-def wo_entries(press, cnc, conveyor, tech, admin_user, manager_user, comps):
+def wo_entries(induksi, forging, robot, motor_ac, compressor, tech, admin_user, manager_user, comp_map):
     """
     Return list of dicts for completed WOs.
-    comps index:
-      0=Hydraulic Pump, 1=Filter Cartridge, 2=Belt Drive,
-      3=Lubricant Oil,  4=Sensor Module,    5=Bearing Set,
-      6=Fan Blades,     7=Pressure Valve
+    comp_map: dict name -> ComponentItem, contoh key:
+      'Kumparan Induksi', 'Capacitor Bank', 'Pompa Air Pendingin',
+      'Die Set Forging', 'Hydraulic Cylinder', 'Guide Bushing',
+      'Servo Motor', 'Encoder Module', 'Robot Gripper',
+      'Winding Motor AC', 'Bearing Motor', 'Fan Blade Pendingin',
+      'Air Filter Compressor', 'Bearing Set Compressor'
     """
     now = datetime.datetime.utcnow()
     d = lambda days: now - datetime.timedelta(days=days)
+    c = comp_map.get
 
     return [
-        # ---- Preventive: Press ----
+        # ---- Preventive: Mesin Induksi ----
         {
-            "title": "Penggantian filter oli hidrolik rutin",
+            "title": "Megger test isolasi kumparan induksi rutin",
             "description": (
-                "Filter oli hidrolik pada Press Mesin A1 sudah mencapai batas jam operasi. "
-                "Dilakukan penggantian filter sesuai jadwal preventif bulanan."
+                "Pengujian tahanan isolasi (megger test) rutin bulanan pada kumparan induksi. "
+                "Hasil tahanan isolasi 85 MΩ, masih dalam batas aman di atas 50 MΩ."
             ),
             "type": "preventive", "priority": "low",
-            "asset": press, "component": comps[1],
+            "asset": induksi, "component": c("Kumparan Induksi"),
             "assigned_to": tech, "created_by_role": "admin",
             "created_at": d(90), "due_date": d(85), "completed_at": d(86),
             "initial_image": IMG_BEFORE_AMBER, "evidence_image": IMG_AFTER_BLUE,
         },
         {
-            "title": "Pelumasan dan pengecekan pompa hidrolik",
+            "title": "Pemeriksaan dan pembersihan capacitor bank",
             "description": (
-                "Pemeriksaan tekanan kerja pompa hidrolik, pengecekan kebocoran seal, "
-                "dan pelumasan pada fitting yang kering. Tekanan kerja normal di 180 bar."
+                "Pemeriksaan kapasitansi capacitor bank untuk kompensasi daya reaktif. "
+                "Ditemukan debu tebal pada terminal, dibersihkan dan nilai kapasitansi "
+                "diverifikasi masih sesuai spesifikasi 50 kVAR."
             ),
             "type": "preventive", "priority": "medium",
-            "asset": press, "component": comps[0],
+            "asset": induksi, "component": c("Capacitor Bank"),
             "assigned_to": tech, "created_by_role": "manager",
             "created_at": d(65), "due_date": d(60), "completed_at": d(61),
             "initial_image": IMG_BEFORE, "evidence_image": IMG_AFTER,
         },
         {
-            "title": "Penggantian oli mesin press berkala",
+            "title": "Perawatan sistem pendingin air kumparan induksi",
             "description": (
-                "Penggantian pelumas mesin sesuai interval 500 jam operasional. "
-                "Oli lama menunjukkan kontaminasi ringan. Oli baru Shell Tellus S2 M46 digunakan."
+                "Pemeriksaan sirkulasi air pendingin kumparan sesuai interval 500 jam operasional. "
+                "Ditemukan penyumbatan ringan pada saringan pompa, dibersihkan hingga aliran normal."
             ),
             "type": "preventive", "priority": "low",
-            "asset": press, "component": comps[3],
+            "asset": induksi, "component": c("Pompa Air Pendingin"),
             "assigned_to": tech, "created_by_role": "admin",
             "created_at": d(30), "due_date": d(28), "completed_at": d(28),
             "initial_image": IMG_BEFORE_AMBER, "evidence_image": IMG_AFTER,
         },
 
-        # ---- Corrective: Press ----
+        # ---- Corrective: Mesin Induksi ----
         {
-            "title": "Perbaikan kebocoran seal pompa hidrolik",
+            "title": "Perbaikan isolasi kumparan induksi menggelembung",
             "description": (
-                "Ditemukan kebocoran oli pada seal pompa hidrolik kiri. "
-                "Penggantian seal kit dilakukan, tekanan dikembalikan ke operasional normal. "
-                "Konsumsi oli menurun dari 0,5L/hari menjadi 0."
+                "Ditemukan isolasi kumparan menggelembung akibat panas berlebih saat proses "
+                "peleburan berkepanjangan. Lapisan isolasi diganti dan diuji ulang, tahanan "
+                "isolasi kembali normal dari 12 MΩ menjadi 90 MΩ."
             ),
             "type": "corrective", "priority": "high",
-            "asset": press, "component": comps[0],
+            "asset": induksi, "component": c("Kumparan Induksi"),
             "assigned_to": tech, "created_by_role": "manager",
             "created_at": d(75), "due_date": d(73), "completed_at": d(74),
             "initial_image": IMG_BEFORE_ORANGE, "evidence_image": IMG_AFTER,
         },
         {
-            "title": "Penggantian pressure valve bocor",
+            "title": "Penggantian capacitor bank rusak",
             "description": (
-                "Pressure valve pada jalur utama mengalami kebocoran internal yang menyebabkan "
-                "penurunan tekanan kerja dari 200 bar ke 160 bar. Valve diganti dengan unit baru."
+                "Salah satu unit capacitor bank mengalami penurunan kapasitansi drastis "
+                "menyebabkan power factor turun ke 0,78. Unit diganti dan power factor "
+                "kembali ke 0,96."
             ),
             "type": "corrective", "priority": "high",
-            "asset": press, "component": comps[7],
+            "asset": induksi, "component": c("Capacitor Bank"),
             "assigned_to": tech, "created_by_role": "admin",
             "created_at": d(20), "due_date": d(18), "completed_at": d(19),
             "initial_image": IMG_BEFORE, "evidence_image": IMG_AFTER_TEAL,
         },
 
-        # ---- Preventive: CNC ----
+        # ---- Preventive: Mesin Forging ----
         {
-            "title": "Kalibrasi sensor suhu spindle CNC",
+            "title": "Inspeksi keausan permukaan die set forging",
             "description": (
-                "Kalibrasi periodik sensor suhu pada spindle CNC Milling B2. "
-                "Pembacaan suhu diverifikasi terhadap referensi terstandar, deviasi 0,3°C masih dalam toleransi."
+                "Inspeksi periodik permukaan die set untuk mendeteksi keausan dan retak rambut "
+                "akibat beban impact repetitif. Deviasi dimensi 0,2mm masih dalam toleransi."
             ),
             "type": "preventive", "priority": "medium",
-            "asset": cnc, "component": comps[4],
+            "asset": forging, "component": c("Die Set Forging"),
             "assigned_to": tech, "created_by_role": "manager",
             "created_at": d(80), "due_date": d(76), "completed_at": d(77),
             "initial_image": IMG_BEFORE_AMBER, "evidence_image": IMG_AFTER_BLUE,
         },
         {
-            "title": "Penggantian bearing spindle CNC preventif",
+            "title": "Penggantian guide bushing preventif",
             "description": (
-                "Bearing spindle utama sudah mencapai 2000 jam operasional. "
-                "Penggantian preventif dilakukan sebelum tanda keausan muncul. "
-                "Bearing baru SKF 6205-2RS dipasang."
+                "Guide bushing sudah mencapai 2000 siklus tempa. Penggantian preventif dilakukan "
+                "sebelum menyebabkan misalignment pada proses forging. Bushing baru terpasang presisi."
             ),
             "type": "preventive", "priority": "medium",
-            "asset": cnc, "component": comps[5],
+            "asset": forging, "component": c("Guide Bushing"),
             "assigned_to": tech, "created_by_role": "admin",
             "created_at": d(55), "due_date": d(50), "completed_at": d(51),
             "initial_image": IMG_BEFORE, "evidence_image": IMG_AFTER,
         },
         {
-            "title": "Pemeriksaan dan pelumasan ball screw CNC",
+            "title": "Pemeriksaan dan pengisian oli hydraulic cylinder",
             "description": (
-                "Pelumasan rutin ball screw sumbu X, Y, dan Z sesuai jadwal 250 jam. "
-                "Semua sumbu bergerak lancar, tidak ada backlash berlebih ditemukan."
+                "Pemeriksaan rutin tekanan kerja hydraulic cylinder dan pengisian oli sesuai "
+                "jadwal 250 jam. Tekanan kerja terverifikasi stabil di 210 bar."
             ),
             "type": "preventive", "priority": "low",
-            "asset": cnc, "component": comps[3],
+            "asset": forging, "component": c("Hydraulic Cylinder"),
             "assigned_to": tech, "created_by_role": "admin",
             "created_at": d(40), "due_date": d(37), "completed_at": d(38),
             "initial_image": IMG_BEFORE_AMBER, "evidence_image": IMG_AFTER_TEAL,
         },
 
-        # ---- Corrective: CNC ----
+        # ---- Corrective: Mesin Forging ----
         {
-            "title": "Penggantian sensor modul suhu rusak",
+            "title": "Perbaikan kebocoran seal hydraulic cylinder",
             "description": (
-                "Sensor modul suhu pada sumbu Z menunjukkan pembacaan error E-04 (short circuit). "
-                "Modul diganti dengan unit baru, sistem dikalibrasi ulang dan berfungsi normal."
+                "Ditemukan kebocoran oli pada seal hydraulic cylinder utama saat proses penempaan. "
+                "Seal kit diganti, tekanan kerja dikembalikan ke 210 bar tanpa kebocoran."
             ),
             "type": "corrective", "priority": "high",
-            "asset": cnc, "component": comps[4],
+            "asset": forging, "component": c("Hydraulic Cylinder"),
             "assigned_to": tech, "created_by_role": "manager",
             "created_at": d(70), "due_date": d(68), "completed_at": d(69),
             "initial_image": IMG_BEFORE_ORANGE, "evidence_image": IMG_AFTER_BLUE,
         },
         {
-            "title": "Perbaikan bearing spindle aus akibat beban lebih",
+            "title": "Penggantian die set retak akibat beban lebih",
             "description": (
-                "Bearing spindle mengeluarkan suara abnormal (grinding noise) pada RPM di atas 3000. "
-                "Pemeriksaan menunjukkan permukaan aus akibat overload. Bearing diganti dan "
-                "parameter batas beban di-reset."
+                "Die set forging mengalami retak akibat beban impact melebihi kapasitas nominal. "
+                "Unit diganti dengan die set baru dan parameter tekanan hammer disesuaikan."
             ),
             "type": "corrective", "priority": "high",
-            "asset": cnc, "component": comps[5],
+            "asset": forging, "component": c("Die Set Forging"),
             "assigned_to": tech, "created_by_role": "manager",
             "created_at": d(45), "due_date": d(43), "completed_at": d(44),
             "initial_image": IMG_BEFORE, "evidence_image": IMG_AFTER,
         },
         {
-            "title": "Perbaikan pressure valve CNC coolant system",
+            "title": "Perbaikan guide bushing aus menyebabkan misalignment",
             "description": (
-                "Sistem pendingin coolant tidak mengalir dengan baik karena pressure valve tersumbat. "
-                "Valve dibersihkan dari kerak dan serpihan aluminium. Aliran coolant kembali normal."
+                "Guide bushing aus menyebabkan hasil tempa tidak center hingga deviasi 1,5mm. "
+                "Bushing diganti dan alignment mekanis dikalibrasi ulang."
             ),
             "type": "corrective", "priority": "medium",
-            "asset": cnc, "component": comps[7],
+            "asset": forging, "component": c("Guide Bushing"),
             "assigned_to": tech, "created_by_role": "admin",
             "created_at": d(15), "due_date": d(13), "completed_at": d(14),
             "initial_image": IMG_BEFORE_ORANGE, "evidence_image": IMG_AFTER_TEAL,
         },
 
-        # ---- Preventive: Conveyor ----
+        # ---- Preventive: Robot ----
         {
-            "title": "Pemeriksaan dan penyetelan tegangan belt conveyor",
+            "title": "Kalibrasi ulang TCP (Tool Center Point) robot",
             "description": (
-                "Pemeriksaan tegangan belt mingguan pada Conveyor C3. "
-                "Belt kanan ditemukan kendur 5mm dari spesifikasi, dilakukan penyetelan idler. "
-                "Tegangan setelah penyetelan: 120N sesuai standar."
+                "Kalibrasi rutin mingguan Tool Center Point robot welding R3. "
+                "Deviasi posisi terverifikasi 0,1mm, masih dalam toleransi presisi las."
             ),
             "type": "preventive", "priority": "low",
-            "asset": conveyor, "component": comps[2],
+            "asset": robot, "component": c("Servo Motor"),
             "assigned_to": tech, "created_by_role": "admin",
             "created_at": d(85), "due_date": d(82), "completed_at": d(82),
             "initial_image": IMG_BEFORE_AMBER, "evidence_image": IMG_AFTER,
         },
         {
-            "title": "Pembersihan dan pelumasan fan blade conveyor",
+            "title": "Pemeriksaan dan pelumasan gripper robot",
             "description": (
-                "Fan blade pada motor conveyor dibersihkan dari debu dan serpihan material. "
-                "Ditemukan akumulasi debu setebal 8mm yang menyebabkan panas berlebih. "
-                "Setelah pembersihan, suhu motor turun 12°C."
+                "Pemeriksaan mekanisme gripper untuk memastikan cengkeraman tetap kuat. "
+                "Pelumasan pada joint gripper dilakukan, gaya cengkeram terukur 450N sesuai spesifikasi."
             ),
             "type": "preventive", "priority": "medium",
-            "asset": conveyor, "component": comps[6],
+            "asset": robot, "component": c("Robot Gripper"),
             "assigned_to": tech, "created_by_role": "manager",
             "created_at": d(50), "due_date": d(47), "completed_at": d(48),
             "initial_image": IMG_BEFORE, "evidence_image": IMG_AFTER_TEAL,
         },
         {
-            "title": "Penggantian oli gearbox conveyor",
+            "title": "Update firmware dan kalibrasi encoder robot",
             "description": (
-                "Penggantian oli gearbox reduksi sesuai jadwal 1000 jam operasional. "
-                "Analisis oli lama menunjukkan kontaminasi logam halus. "
-                "Oli baru Mobil SHC 630 digunakan sesuai rekomendasi pabrikan."
+                "Update firmware controller robot dan kalibrasi ulang encoder pada seluruh sumbu "
+                "sesuai jadwal 1000 jam operasional. Semua sumbu bergerak sesuai referensi standar."
             ),
             "type": "preventive", "priority": "low",
-            "asset": conveyor, "component": comps[3],
+            "asset": robot, "component": c("Encoder Module"),
             "assigned_to": tech, "created_by_role": "admin",
             "created_at": d(25), "due_date": d(23), "completed_at": d(23),
             "initial_image": IMG_BEFORE_AMBER, "evidence_image": IMG_AFTER_BLUE,
         },
 
-        # ---- Corrective: Conveyor ----
+        # ---- Corrective: Robot ----
         {
-            "title": "Penggantian belt conveyor putus di jalur C",
+            "title": "Penggantian encoder robot akibat drift posisi",
             "description": (
-                "Belt conveyor putus pada sambungan ke-3 saat produksi berjalan. "
-                "Mesin dihentikan darurat. Belt baru dengan panjang 12m dipasang, "
-                "sambungan menggunakan mechanical splice untuk kecepatan recovery."
+                "Encoder module pada sumbu 4 mengalami drift posisi 0,8mm menyebabkan hasil las "
+                "tidak presisi. Modul diganti dan kalibrasi TCP diulang, hasil las kembali presisi."
             ),
             "type": "corrective", "priority": "high",
-            "asset": conveyor, "component": comps[2],
+            "asset": robot, "component": c("Encoder Module"),
             "assigned_to": tech, "created_by_role": "manager",
             "created_at": d(60), "due_date": d(59), "completed_at": d(59),
             "initial_image": IMG_BEFORE_ORANGE, "evidence_image": IMG_AFTER,
         },
         {
-            "title": "Perbaikan fan blade conveyor retak",
+            "title": "Perbaikan gripper robot gagal mencengkeram",
             "description": (
-                "Salah satu fan blade motor penggerak ditemukan retak akibat getaran berlebih. "
-                "Seluruh set fan blade diganti untuk menjaga keseimbangan rotasi. "
-                "Getaran motor kembali ke level normal (< 2 mm/s)."
+                "Gripper gagal mencengkeram material akibat pegas mekanisme melemah. "
+                "Set pegas dan bantalan gripper diganti, gaya cengkeram kembali normal."
             ),
             "type": "corrective", "priority": "medium",
-            "asset": conveyor, "component": comps[6],
+            "asset": robot, "component": c("Robot Gripper"),
             "assigned_to": tech, "created_by_role": "admin",
             "created_at": d(35), "due_date": d(33), "completed_at": d(34),
             "initial_image": IMG_BEFORE, "evidence_image": IMG_AFTER_BLUE,
         },
         {
-            "title": "Perbaikan sistem kontrol conveyor error E-12",
+            "title": "Perbaikan servo motor overheat sumbu 2",
             "description": (
-                "Sistem kontrol menampilkan error E-12 (overload protection) berulang kali. "
-                "Pemeriksaan menemukan short circuit pada kabel sensor beban. "
-                "Kabel diganti dan parameter kontrol dikalibrasi ulang."
+                "Servo motor sumbu 2 mengalami overheat berulang saat gerakan berkecepatan tinggi. "
+                "Pemeriksaan menemukan kipas pendingin motor tersumbat debu. Setelah dibersihkan, "
+                "suhu motor turun 18°C ke level normal."
             ),
             "type": "corrective", "priority": "high",
-            "asset": conveyor, "component": comps[4],
+            "asset": robot, "component": c("Servo Motor"),
             "assigned_to": tech, "created_by_role": "manager",
             "created_at": d(10), "due_date": d(9), "completed_at": d(9),
             "initial_image": IMG_BEFORE_ORANGE, "evidence_image": IMG_AFTER_TEAL,
         },
 
-        # ---- Extra: mixed priorities / recent ----
+        # ---- Extra: Motor AC & Compressor, mixed priorities / recent ----
         {
-            "title": "Inspeksi menyeluruh Press Mesin A1 pasca overhaul",
+            "title": "Inspeksi menyeluruh Mesin Induksi pasca overhaul",
             "description": (
-                "Inspeksi komprehensif setelah overhaul besar. Semua sistem diperiksa: "
-                "hidrolik, elektrik, pneumatik, dan mekanik. Hasil: semua sistem dalam "
-                "kondisi baik. Mesin siap beroperasi kembali dengan kapasitas penuh."
+                "Inspeksi komprehensif setelah overhaul besar Mesin Induksi I1. Sistem elektrik, "
+                "pendingin, dan mekanik diperiksa. Hasil: semua sistem dalam kondisi baik, mesin "
+                "siap beroperasi kembali dengan kapasitas penuh."
             ),
             "type": "preventive", "priority": "high",
-            "asset": press, "component": None,
+            "asset": induksi, "component": None,
             "assigned_to": tech, "created_by_role": "manager",
             "created_at": d(100), "due_date": d(96), "completed_at": d(97),
             "initial_image": IMG_BEFORE_AMBER, "evidence_image": IMG_AFTER,
         },
         {
-            "title": "Penggantian filter cartridge mesin press",
+            "title": "Penggantian winding motor AC akibat isolasi breakdown",
             "description": (
-                "Filter cartridge sistem hidro-pneumatik sudah jenuh (indikator merah). "
-                "Penggantian dilakukan on-site tanpa perlu membongkar sistem utama. "
-                "Filter baru dipasang dan dites selama 30 menit tanpa kebocoran."
+                "Winding motor AC blower M4 mengalami isolasi breakdown menyebabkan trip proteksi "
+                "berulang. Rewinding dilakukan dan tahanan isolasi diuji kembali normal di atas 100 MΩ."
             ),
-            "type": "corrective", "priority": "medium",
-            "asset": press, "component": comps[1],
-            "assigned_to": tech, "created_by_role": "admin",
+            "type": "corrective", "priority": "high",
+            "asset": motor_ac, "component": c("Winding Motor AC"),
+            "assigned_to": tech, "created_by_role": "manager",
             "created_at": d(5), "due_date": d(4), "completed_at": d(4),
             "initial_image": IMG_BEFORE, "evidence_image": IMG_AFTER_BLUE,
         },
         {
-            "title": "Pemeriksaan bearing set CNC setelah alarm getaran",
+            "title": "Penggantian bearing motor AC bersuara kasar",
             "description": (
-                "Sistem monitoring mendeteksi peningkatan getaran pada sumbu Y. "
-                "Inspeksi menemukan bearing dalam kondisi baik namun kurang pelumas. "
-                "Pelumasan dilakukan dan alarm getaran tidak muncul kembali setelah 24 jam."
+                "Bearing motor AC blower mengeluarkan suara grinding pada RPM operasional. "
+                "Bearing diganti dan getaran motor kembali ke level normal (< 2 mm/s)."
             ),
             "type": "corrective", "priority": "medium",
-            "asset": cnc, "component": comps[5],
+            "asset": motor_ac, "component": c("Bearing Motor"),
+            "assigned_to": tech, "created_by_role": "admin",
+            "created_at": d(18), "due_date": d(16), "completed_at": d(17),
+            "initial_image": IMG_BEFORE_ORANGE, "evidence_image": IMG_AFTER_TEAL,
+        },
+        {
+            "title": "Pembersihan fan blade pendingin motor AC",
+            "description": (
+                "Fan blade pendingin motor AC dibersihkan dari akumulasi debu setebal 6mm yang "
+                "menyebabkan suhu motor naik. Setelah dibersihkan, suhu motor turun 10°C."
+            ),
+            "type": "preventive", "priority": "low",
+            "asset": motor_ac, "component": c("Fan Blade Pendingin"),
+            "assigned_to": tech, "created_by_role": "admin",
+            "created_at": d(42), "due_date": d(39), "completed_at": d(40),
+            "initial_image": IMG_BEFORE_AMBER, "evidence_image": IMG_AFTER,
+        },
+        {
+            "title": "Penggantian air filter compressor tersumbat",
+            "description": (
+                "Air filter compressor tersumbat kotoran menyebabkan aliran udara turun di bawah "
+                "spesifikasi. Filter diganti, air flow kembali normal di rentang 500-700 m³/h."
+            ),
+            "type": "preventive", "priority": "medium",
+            "asset": compressor, "component": c("Air Filter Compressor"),
+            "assigned_to": tech, "created_by_role": "manager",
+            "created_at": d(28), "due_date": d(26), "completed_at": d(26),
+            "initial_image": IMG_BEFORE_AMBER, "evidence_image": IMG_AFTER_BLUE,
+        },
+        {
+            "title": "Pemeriksaan bearing compressor setelah alarm getaran & noise",
+            "description": (
+                "Sistem monitoring ML mendeteksi peningkatan noise dan getaran pada bearing "
+                "compressor. Inspeksi menemukan bearing kurang pelumas, dilakukan pelumasan dan "
+                "alarm tidak muncul kembali setelah 24 jam."
+            ),
+            "type": "corrective", "priority": "medium",
+            "asset": compressor, "component": c("Bearing Set Compressor"),
             "assigned_to": tech, "created_by_role": "manager",
             "created_at": d(3), "due_date": d(2), "completed_at": d(2),
             "initial_image": IMG_BEFORE_AMBER, "evidence_image": IMG_AFTER_TEAL,
@@ -325,32 +358,23 @@ def wo_entries(press, cnc, conveyor, tech, admin_user, manager_user, comps):
 
 def seed():
     with app.app_context():
-        press    = Asset.objects(machine_id='PR-001').first()
-        cnc      = Asset.objects(machine_id='CNC-002').first()
-        conveyor = Asset.objects(machine_id='CV-003').first()
-        tech     = User.objects(email='tech@cmms.com').first()
-        manager  = User.objects(email='manager@cmms.com').first()
-        admin_u  = User.objects(email='admin@cmms.com').first()
-        comps    = list(ComponentItem.objects())
+        induksi    = Asset.objects(machine_id='IND-001').first()
+        forging    = Asset.objects(machine_id='FRG-002').first()
+        robot      = Asset.objects(machine_id='ROB-003').first()
+        motor_ac   = Asset.objects(machine_id='MTR-004').first()
+        compressor = Asset.objects(machine_id='CMP-DUMMY-001').first()
+        tech       = User.objects(email='tech@cmms.com').first()
+        manager    = User.objects(email='manager@cmms.com').first()
+        admin_u    = User.objects(email='admin@cmms.com').first()
+        comps      = list(ComponentItem.objects())
 
-        if not all([press, cnc, conveyor, tech]):
+        if not all([induksi, forging, robot, motor_ac, compressor, tech]):
             print("ERROR: Jalankan seed_data.py terlebih dahulu untuk membuat aset dan user dasar.")
             return
 
-        # Map komponen by name untuk index yang aman
         comp_map = {c.name: c for c in comps}
-        comp_list = [
-            comp_map.get('Hydraulic Pump'),
-            comp_map.get('Filter Cartridge'),
-            comp_map.get('Belt Drive'),
-            comp_map.get('Lubricant Oil'),
-            comp_map.get('Sensor Module'),
-            comp_map.get('Bearing Set'),
-            comp_map.get('Fan Blades'),
-            comp_map.get('Pressure Valve'),
-        ]
 
-        entries = wo_entries(press, cnc, conveyor, tech, admin_u, manager, comp_list)
+        entries = wo_entries(induksi, forging, robot, motor_ac, compressor, tech, admin_u, manager, comp_map)
 
         created = 0
         skipped = 0
