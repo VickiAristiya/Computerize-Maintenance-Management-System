@@ -223,6 +223,9 @@ class SensorData(db.Document):
     haccy = db.FloatField()
     haccz = db.FloatField()
 
+    # Tampung sensor mesin lain yang belum punya field resmi (mis. vx/vy/vz, dx/dy/dz, fx/fy/fz)
+    raw_readings = db.DictField()
+
     # Metadata simulator untuk demo predictive maintenance
     demo_mode = db.StringField()
     demo_stage = db.StringField()
@@ -267,6 +270,7 @@ class SensorData(db.Document):
             "haccx": self.haccx,
             "haccy": self.haccy,
             "haccz": self.haccz,
+            "raw_readings": self.raw_readings,
             "demo_mode": self.demo_mode,
             "demo_stage": self.demo_stage,
             "demo_expected_risk": self.demo_expected_risk,

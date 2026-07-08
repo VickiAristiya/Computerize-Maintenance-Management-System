@@ -54,6 +54,33 @@ const HEALTH_COLORS = {
     low:    '#EF4444',
 };
 
+// Palet & fallback untuk field sensor yang belum terdaftar di FIELD_META
+// (mis. sensor dari mesin baru: vx, dy, fz, dll.)
+const FALLBACK_PALETTE = [
+    '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#06B6D4',
+    '#F97316', '#10B981', '#0EA5E9', '#6366F1', '#EC4899',
+];
+
+function hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) | 0;
+    return Math.abs(hash);
+}
+
+function humanizeFieldName(field) {
+    return field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function getFieldMeta(field) {
+    if (FIELD_META[field]) return FIELD_META[field];
+    return {
+        label: humanizeFieldName(field),
+        unit: '',
+        color: FALLBACK_PALETTE[hashString(field) % FALLBACK_PALETTE.length],
+        icon: Activity,
+    };
+}
+
 function fmt(v) {
     if (v === null || v === undefined) return '-';
     return parseFloat(v).toLocaleString('id-ID', { maximumFractionDigits: 2 });
@@ -67,7 +94,7 @@ function fmtTs(iso) {
 
 // ── Chart satu sensor ──────────────────────────────────────────────────────
 function SensorChart({ field, history }) {
-    const meta = FIELD_META[field] || { label: field, unit: '', color: '#64748B', icon: Activity };
+    const meta = getFieldMeta(field);
     const Icon = meta.icon;
 
     const labels = [...history].reverse().map(r => fmtTs(r.timestamp));
@@ -208,14 +235,17 @@ function HistoryTable({ history, fields }) {
                     <tr>
                         <th className="px-3 py-2.5 text-left font-bold text-slate-500 whitespace-nowrap">Timestamp</th>
                         <th className="px-3 py-2.5 text-center font-bold text-slate-500">Health</th>
-                        {fields.map(f => (
-                            <th key={f} className="px-3 py-2.5 text-right font-bold text-slate-500 whitespace-nowrap">
-                                {FIELD_META[f]?.label || f}
-                                <span className="font-normal text-slate-400 ml-0.5">
-                                    ({FIELD_META[f]?.unit || ''})
-                                </span>
-                            </th>
-                        ))}
+                        {fields.map(f => {
+                            const meta = getFieldMeta(f);
+                            return (
+                                <th key={f} className="px-3 py-2.5 text-right font-bold text-slate-500 whitespace-nowrap">
+                                    {meta.label}
+                                    <span className="font-normal text-slate-400 ml-0.5">
+                                        ({meta.unit})
+                                    </span>
+                                </th>
+                            );
+                        })}
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">

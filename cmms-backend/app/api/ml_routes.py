@@ -10,6 +10,44 @@ ml_bp = Blueprint("ml_bp", __name__)
 # Default predictor untuk endpoint yang tidak spesifik per-asset (compressor)
 predictor = CompressorPredictor()
 
+# Field bertipe eksplisit di SensorData (lih. models.py). Dipakai bersama oleh
+# endpoint simpan (add_sensor_data) dan riwayat (get_sensor_history) supaya
+# keduanya selalu sinkron.
+STRING_FIELDS = [
+    "demo_mode",
+    "demo_stage",
+    "demo_expected_risk",
+    "demo_expected_action",
+]
+
+NUMERIC_FIELDS = [
+    "temperature",
+    "vibration",
+    "pressure",
+    "current",
+    "voltage",
+    "rpm",
+    "motor_power",
+    "torque",
+    "outlet_pressure_bar",
+    "air_flow",
+    "noise_db",
+    "outlet_temp",
+    "wpump_outlet_press",
+    "water_inlet_temp",
+    "water_outlet_temp",
+    "wpump_power",
+    "water_flow",
+    "oilpump_power",
+    "oil_tank_temp",
+    "gaccx",
+    "gaccy",
+    "gaccz",
+    "haccx",
+    "haccy",
+    "haccz",
+]
+
 
 def _error_response(message, status_code=400, **extra):
     payload = {"error": message}
@@ -179,10 +217,6 @@ def get_sensor_history(machine_id):
     limit = min(int(request.args.get("limit", 50)), 200)
     records = SensorData.objects(asset=asset).order_by("-timestamp").limit(limit)
 
-    SENSOR_FIELDS = [
-        "noise_db", "water_flow", "air_flow", "gaccx", "outlet_temp",
-    ]
-
     history = []
     available_fields = set()
 
@@ -194,8 +228,14 @@ def get_sensor_history(machine_id):
             "failure_probability": r.failure_probability,
             "predicted_failure_days": r.predicted_failure_days,
         }
-        for f in SENSOR_FIELDS:
+        # Field bertipe eksplisit (temperature, gaccx, dst.)
+        for f in NUMERIC_FIELDS:
             val = getattr(r, f, None)
+            if val is not None:
+                row[f] = val
+                available_fields.add(f)
+        # Field mesin lain yang belum punya kolom resmi, ditampung raw_readings
+        for f, val in (r.raw_readings or {}).items():
             if val is not None:
                 row[f] = val
                 available_fields.add(f)
@@ -223,47 +263,13 @@ def add_sensor_data():
         return _error_response("Asset not found", 404)
 
     sensor_data = SensorData(asset=asset)
-    string_fields = [
-        "demo_mode",
-        "demo_stage",
-        "demo_expected_risk",
-        "demo_expected_action",
-    ]
 
-    for field in string_fields:
+    for field in STRING_FIELDS:
         if data.get(field) is not None:
             setattr(sensor_data, field, str(data[field]))
 
-    numeric_fields = [
-        "temperature",
-        "vibration",
-        "pressure",
-        "current",
-        "voltage",
-        "rpm",
-        "motor_power",
-        "torque",
-        "outlet_pressure_bar",
-        "air_flow",
-        "noise_db",
-        "outlet_temp",
-        "wpump_outlet_press",
-        "water_inlet_temp",
-        "water_outlet_temp",
-        "wpump_power",
-        "water_flow",
-        "oilpump_power",
-        "oil_tank_temp",
-        "gaccx",
-        "gaccy",
-        "gaccz",
-        "haccx",
-        "haccy",
-        "haccz",
-    ]
-
     invalid_fields = []
-    for field in numeric_fields:
+    for field in NUMERIC_FIELDS:
         if field not in data or data[field] is None:
             continue
         try:
@@ -277,6 +283,15 @@ def add_sensor_data():
             400,
             invalid_fields=invalid_fields,
         )
+
+    known_fields = {"machine_id", *STRING_FIELDS, *NUMERIC_FIELDS}
+    raw_readings = {
+        field: value
+        for field, value in data.items()
+        if field not in known_fields and value is not None
+    }
+    if raw_readings:
+        sensor_data.raw_readings = raw_readings
 
     prediction = None
     try:
