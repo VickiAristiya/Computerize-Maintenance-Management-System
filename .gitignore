@@ -43,10 +43,6 @@ machine-learning filtered data/compressor/models/hybrid_model.pkl
 .vscode/
 .idea/
 
-# Claude Code settings (local only)
-.claude/
-claude.md
-
 # Dokumen non-kode
 Template_KTI_TA_final.docx
 data excell.xlsx
