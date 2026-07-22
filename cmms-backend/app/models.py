@@ -228,14 +228,10 @@ class SensorData(db.Document):
     # Tampung sensor mesin lain yang belum punya field resmi (mis. vx/vy/vz, dx/dy/dz, fx/fy/fz)
     raw_readings = db.DictField()
 
-    # Metadata simulator untuk demo predictive maintenance
-    demo_mode = db.StringField()
-    demo_stage = db.StringField()
-    demo_expected_risk = db.StringField()
-    demo_expected_action = db.StringField()
-    
-    # Status kesehatan (0-1, dihitung oleh ML)
-    health_score = db.FloatField(default=1.0)
+    # Status kesehatan (0-1, dihitung oleh ML). Tanpa default — None berarti
+    # belum ada prediksi ML untuk data ini (mis. mesin belum punya model
+    # terdaftar), supaya tidak tercampur dengan hasil prediksi 100% asli.
+    health_score = db.FloatField()
     
     # Prediksi failure
     predicted_failure_days = db.FloatField()  # Hari sampai failure
@@ -273,10 +269,6 @@ class SensorData(db.Document):
             "haccy": self.haccy,
             "haccz": self.haccz,
             "raw_readings": self.raw_readings,
-            "demo_mode": self.demo_mode,
-            "demo_stage": self.demo_stage,
-            "demo_expected_risk": self.demo_expected_risk,
-            "demo_expected_action": self.demo_expected_action,
             "health_score": self.health_score,
             "predicted_failure_days": self.predicted_failure_days,
             "failure_probability": self.failure_probability

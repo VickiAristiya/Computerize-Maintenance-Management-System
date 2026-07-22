@@ -2,12 +2,14 @@
 from flask import Flask
 from flask_mongoengine import MongoEngine
 from flask_cors import CORS
-from flask_bcrypt import Bcrypt 
+from flask_bcrypt import Bcrypt
+from flask_socketio import SocketIO
 import os
 
 # Inisialisasi Database
 db = MongoEngine()
-bcrypt = Bcrypt() 
+bcrypt = Bcrypt()
+socketio = SocketIO()
 
 def create_app():
     app = Flask(__name__)
@@ -31,6 +33,9 @@ def create_app():
     
     # Izinkan CORS
     CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "http://localhost:5173"]}})
+
+    # Inisialisasi SocketIO untuk push real-time (notifikasi & status mesin)
+    socketio.init_app(app, cors_allowed_origins=["http://localhost:3000", "http://localhost:5173"])
 
     # Daftarkan blueprint (rute) Anda
     

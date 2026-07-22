@@ -13,7 +13,6 @@ def _sensor_to_payload(sensor_data):
     payload = {}
     for column in predictor.feature_columns:
         payload[column] = getattr(sensor_data, column, None)
-    payload["demo_mode"] = getattr(sensor_data, "demo_mode", None)
     return payload
 
 

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
+import { useSocket } from '../context/useSocket.js';
 
 ChartJS.register(
     CategoryScale, LinearScale, PointElement, LineElement,
@@ -174,6 +175,7 @@ function SensorChart({ field, history }) {
 
 // ── Health Score Chart ─────────────────────────────────────────────────────
 function HealthChart({ history }) {
+    const hasAnyHealth = history.some(r => r.health_score != null);
     const labels  = [...history].reverse().map(r => fmtTs(r.timestamp));
     const values  = [...history].reverse().map(r => r.health_score != null ? r.health_score * 100 : null);
     const latest  = history[0]?.health_score;
@@ -213,15 +215,27 @@ function HealthChart({ history }) {
                     </div>
                     <p className="text-xs font-bold text-slate-700">Health Score Keseluruhan</p>
                 </div>
-                {hPct != null && (
+                {hPct != null ? (
                     <span className="text-lg font-bold" style={{ color }}>
                         {hPct}%
                     </span>
+                ) : (
+                    <span className="text-xs font-semibold text-slate-400 italic">
+                        Belum ada fitur ML
+                    </span>
                 )}
             </div>
-            <div className="h-28">
-                <Line data={chartData} options={options} />
-            </div>
+            {hasAnyHealth ? (
+                <div className="h-28">
+                    <Line data={chartData} options={options} />
+                </div>
+            ) : (
+                <div className="h-28 flex items-center justify-center text-center px-6">
+                    <p className="text-xs text-slate-400">
+                        Mesin ini belum memiliki model Machine Learning terdaftar, sehingga health score belum tersedia.
+                    </p>
+                </div>
+            )}
         </div>
     );
 }
@@ -258,7 +272,7 @@ function HistoryTable({ history, fields }) {
                                 <td className="px-3 py-2 text-center">
                                     {hPct != null
                                         ? <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${hColor}`}>{hPct}%</span>
-                                        : <span className="text-slate-300">-</span>}
+                                        : <span className="text-slate-300" title="Belum ada fitur ML">-</span>}
                                 </td>
                                 {fields.map(f => (
                                     <td key={f} className="px-3 py-2 text-right text-slate-700 font-mono">
@@ -285,6 +299,7 @@ export default function SensorMonitoringPage() {
     const [limit, setLimit]       = useState(50);
     const [view, setView]         = useState('chart'); // chart | table
     const [refreshing, setRefreshing] = useState(false);
+    const { socket } = useSocket();
 
     const fetchData = useCallback(async (showRefresh = false) => {
         if (showRefresh) setRefreshing(true); else setLoading(true);
@@ -301,6 +316,21 @@ export default function SensorMonitoringPage() {
     }, [assetId, limit]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
+
+    // Refresh otomatis kalau data sensor baru masuk untuk mesin yang sedang dibuka,
+    // supaya grafik/tabel tidak perlu di-refresh manual.
+    useEffect(() => {
+        if (!socket) return;
+        const handleUpdate = (payload) => {
+            if (payload?.machine_id === assetId) fetchData();
+        };
+        socket.on('sensor_data_update', handleUpdate);
+        socket.on('machine_alert', handleUpdate);
+        return () => {
+            socket.off('sensor_data_update', handleUpdate);
+            socket.off('machine_alert', handleUpdate);
+        };
+    }, [socket, assetId, fetchData]);
 
     if (loading) return <LoadingState />;
     if (error)   return <ErrorState message={error} />;

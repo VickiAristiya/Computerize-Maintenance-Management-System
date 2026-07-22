@@ -1,25 +1,22 @@
 # /cmms-backend/app/api/ml_routes.py
 from flask import Blueprint, jsonify, request
 
+from app import socketio
 from app.ml_service import CompressorPredictor, COMPONENTS
 from app.ml_registry import get_predictor
 from app.models import Asset, SensorData
+
+# risk_level yang dianggap cukup penting untuk memicu alert real-time
+ALERT_RISK_LEVELS = {"high", "critical"}
 
 
 ml_bp = Blueprint("ml_bp", __name__)
 # Default predictor untuk endpoint yang tidak spesifik per-asset (compressor)
 predictor = CompressorPredictor()
 
-# Field bertipe eksplisit di SensorData (lih. models.py). Dipakai bersama oleh
-# endpoint simpan (add_sensor_data) dan riwayat (get_sensor_history) supaya
-# keduanya selalu sinkron.
-STRING_FIELDS = [
-    "demo_mode",
-    "demo_stage",
-    "demo_expected_risk",
-    "demo_expected_action",
-]
-
+# Field numerik bertipe eksplisit di SensorData (lih. models.py). Dipakai
+# bersama oleh endpoint simpan (add_sensor_data) dan riwayat (get_sensor_history)
+# supaya keduanya selalu sinkron.
 NUMERIC_FIELDS = [
     "temperature",
     "vibration",
@@ -59,7 +56,6 @@ def _sensor_to_payload(sensor_data):
     payload = {}
     for column in predictor.feature_columns:
         payload[column] = getattr(sensor_data, column, None)
-    payload["demo_mode"] = getattr(sensor_data, "demo_mode", None)
     return payload
 
 
@@ -207,6 +203,19 @@ def get_all_predictions():
     }), 200
 
 
+@ml_bp.route("/sensor-assets", methods=["GET"])
+def get_assets_with_sensor_data():
+    """Daftar asset_id yang punya minimal satu data sensor tersimpan, terlepas
+    dari lengkap/tidaknya fitur untuk model ML tertentu. Dipakai front-end untuk
+    menampilkan tombol 'Monitoring Sensor' pada mesin yang belum punya model ML
+    terdaftar (mis. forging) tapi datanya sudah masuk."""
+    asset_ids = [
+        str(asset.id) for asset in Asset.objects()
+        if SensorData.objects(asset=asset).first() is not None
+    ]
+    return jsonify({"asset_ids": asset_ids}), 200
+
+
 @ml_bp.route("/sensor-history/<machine_id>", methods=["GET"])
 def get_sensor_history(machine_id):
     """Riwayat data sensor untuk satu asset, diurutkan terbaru dulu."""
@@ -264,10 +273,6 @@ def add_sensor_data():
 
     sensor_data = SensorData(asset=asset)
 
-    for field in STRING_FIELDS:
-        if data.get(field) is not None:
-            setattr(sensor_data, field, str(data[field]))
-
     invalid_fields = []
     for field in NUMERIC_FIELDS:
         if field not in data or data[field] is None:
@@ -284,7 +289,7 @@ def add_sensor_data():
             invalid_fields=invalid_fields,
         )
 
-    known_fields = {"machine_id", *STRING_FIELDS, *NUMERIC_FIELDS}
+    known_fields = {"machine_id", *NUMERIC_FIELDS}
     raw_readings = {
         field: value
         for field, value in data.items()
@@ -296,7 +301,6 @@ def add_sensor_data():
     prediction = None
     try:
         payload = {field: data.get(field) for field in predictor.feature_columns}
-        payload["demo_mode"] = data.get("demo_mode")
         result = predictor.predict(payload)
         if result["ok"]:
             sensor_data.health_score = result["health_score"]
@@ -310,6 +314,25 @@ def add_sensor_data():
         }
 
     sensor_data.save()
+
+    # --- Push real-time ke frontend, agar dashboard/monitoring tidak perlu di-refresh manual ---
+    update_payload = {
+        "asset_id": str(asset.id),
+        "machine_id": asset.machine_id,
+        "asset_name": asset.name,
+        "timestamp": sensor_data.timestamp.isoformat(),
+        "health_score": sensor_data.health_score,
+        "risk_level": prediction.get("risk_level") if prediction else None,
+    }
+    socketio.emit("sensor_data_update", update_payload)
+
+    if prediction and prediction.get("ok") and prediction.get("risk_level") in ALERT_RISK_LEVELS:
+        socketio.emit("machine_alert", {
+            **update_payload,
+            "failure_probability": prediction.get("failure_probability"),
+            "predicted_days": prediction.get("predicted_days"),
+            "recommendation": prediction.get("recommendation"),
+        })
 
     return jsonify({
         "message": "Sensor data added successfully",

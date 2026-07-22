@@ -4,6 +4,7 @@ import api from '../services/api';
 import { Bell, CalendarClock, ShieldCheck, Loader2, X, AlertTriangle, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import MLNotificationDetailModal from './MLNotificationDetailModal';
+import { useSocket } from '../context/useSocket.js';
 
 const RISK_BADGE = {
   critical: 'bg-rose-100 text-rose-700',
@@ -39,10 +40,9 @@ export default function NotificationDropdown() {
   const [loading, setLoading]             = useState(false);
   const [unreadCount, setUnreadCount]     = useState(0);
   const [selectedNotif, setSelectedNotif] = useState(null);
-  const [toast, setToast]                 = useState(null);
 
   const dropdownRef = useRef(null);
-  const toastTimer  = useRef(null);
+  const { socket }  = useSocket();
 
   // Apakah dropdown sedang terbuka — diakses dari dalam async callback
   const isOpenRef = useRef(false);
@@ -52,10 +52,6 @@ export default function NotificationDropdown() {
   const seenKeys = useRef(
     new Set(JSON.parse(localStorage.getItem('cmms_seen_notif_keys') || '[]'))
   );
-
-  // Kunci dari poll sebelumnya — untuk deteksi notif benar-benar baru
-  // null = belum ada poll sama sekali (load pertama)
-  const prevKeys = useRef(null);
 
   const persistSeen = () => {
     localStorage.setItem('cmms_seen_notif_keys', JSON.stringify([...seenKeys.current]));
@@ -153,21 +149,6 @@ export default function NotificationDropdown() {
       seenKeys.current = prunedSeen;
       persistSeen();
 
-      // Deteksi notif benar-benar baru:
-      // muncul sejak poll terakhir DAN belum pernah dilihat
-      if (prevKeys.current !== null) {
-        const trulyNew = [...currentKeySet].filter(
-          k => !prevKeys.current.has(k) && !seenKeys.current.has(k)
-        );
-        // Tampilkan toast hanya jika dropdown SEDANG TERTUTUP
-        if (trulyNew.length > 0 && !isOpenRef.current) {
-          showToast(trulyNew.length);
-        }
-      }
-
-      // Simpan keys sebelumnya untuk perbandingan di poll berikutnya
-      prevKeys.current = currentKeySet;
-
       // Selalu update notifications agar data terbaru (termasuk field baru) selalu tersedia
       setNotifications(newNotifs);
 
@@ -182,15 +163,6 @@ export default function NotificationDropdown() {
   }, []);
 
   // ------------------------------------------------------------------
-  // Toast notifikasi baru
-  // ------------------------------------------------------------------
-  const showToast = (count) => {
-    setToast({ count });
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 4000);
-  };
-
-  // ------------------------------------------------------------------
   // Mount: fetch awal + interval polling
   // ------------------------------------------------------------------
   useEffect(() => {
@@ -199,9 +171,17 @@ export default function NotificationDropdown() {
     return () => {
       clearTimeout(init);
       clearInterval(poll);
-      if (toastTimer.current) clearTimeout(toastTimer.current);
     };
   }, [fetchNotifications]);
+
+  // Begitu backend mendeteksi mesin berisiko, langsung tarik notifikasi terbaru
+  // (tanpa menunggu siklus polling 30 detik) supaya toast muncul seketika.
+  useEffect(() => {
+    if (!socket) return;
+    const handleAlert = () => fetchNotifications(false);
+    socket.on('machine_alert', handleAlert);
+    return () => socket.off('machine_alert', handleAlert);
+  }, [socket, fetchNotifications]);
 
   // Tutup dropdown saat klik di luar
   useEffect(() => {
@@ -409,29 +389,6 @@ export default function NotificationDropdown() {
         )}
       </div>
 
-      {/* Toast — muncul di pojok kanan bawah saat ada notif baru & dropdown tertutup */}
-      {toast && (
-        <div
-          className="fixed bottom-6 right-6 z-[100] flex items-center gap-3 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-2xl cursor-pointer select-none"
-          style={{ animation: 'slideInFromBottom 0.3s ease-out' }}
-          onClick={() => { setToast(null); setIsOpen(true); fetchNotifications(true); }}
-        >
-          <Bell size={16} className="text-blue-400 shrink-0" />
-          <div>
-            <p className="text-sm font-bold">
-              {toast.count === 1 ? '1 notifikasi baru' : `${toast.count} notifikasi baru`}
-            </p>
-            <p className="text-xs text-slate-400">Klik untuk melihat</p>
-          </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); setToast(null); }}
-            className="ml-1 p-1 text-slate-400 hover:text-white rounded transition"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
-
       {/* Modal detail ML */}
       {selectedNotif && (
         <MLNotificationDetailModal
@@ -439,13 +396,6 @@ export default function NotificationDropdown() {
           onClose={() => setSelectedNotif(null)}
         />
       )}
-
-      <style>{`
-        @keyframes slideInFromBottom {
-          from { opacity: 0; transform: translateY(12px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </>
   );
 }

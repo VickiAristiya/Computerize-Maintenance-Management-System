@@ -5,9 +5,9 @@ Version 2 — 5 sensor untuk komponen Bearing.
 
 import os
 
-# URL backend CMMS (Flask). Override lewat env var CMMS_API_BASE bila perlu
-# (misal saat backend di-hosting, bukan di localhost).
-CMMS_API_BASE = os.environ.get("CMMS_API_BASE", "http://127.0.0.1:5000/api")
+# URL backend CMMS (Flask) yang sudah di-hosting. Override lewat env var
+# CMMS_API_BASE bila perlu (misal untuk tes ke localhost:5000/api).
+CMMS_API_BASE = os.environ.get("CMMS_API_BASE", " http://127.0.0.1:5000/api")
 
 # Machine ID target (sesuai field machine_id di database aset)
 MACHINE_ID = "CMP-DUMMY-001"

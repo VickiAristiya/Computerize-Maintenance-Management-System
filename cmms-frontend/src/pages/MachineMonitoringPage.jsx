@@ -306,19 +306,19 @@ export default function MachineMonitoringPage() {
         setLoading(true);
         setError(null);
         try {
-            const [monRes, predRes] = await Promise.allSettled([
+            const [monRes, sensorRes] = await Promise.allSettled([
                 api.get('/assets/monitoring/dashboard'),
-                api.get('/ml/predictions'),
+                api.get('/ml/sensor-assets'),
             ]);
 
             const assets = monRes.status === 'fulfilled' ? monRes.value.data.assets : [];
             setStatusSummary(monRes.status === 'fulfilled' ? monRes.value.data.status_summary : {});
 
-            // Tandai mesin mana yang punya data sensor
+            // Tandai mesin mana yang punya data sensor (terlepas dari lengkap/tidaknya
+            // fitur untuk model ML tertentu — supaya mesin tanpa model ML terdaftar,
+            // mis. forging, tetap dapat tombol Monitoring Sensor selama datanya ada)
             const assetIdsWithSensor = new Set(
-                predRes.status === 'fulfilled'
-                    ? predRes.value.data.predictions.map(p => p.asset_id)
-                    : []
+                sensorRes.status === 'fulfilled' ? sensorRes.value.data.asset_ids : []
             );
 
             setMachines(assets.map(m => ({

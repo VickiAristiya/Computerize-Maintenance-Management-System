@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import {
@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { DUMMY_COMPRESSOR } from './compressorSensorGenerator.js';
+import { useSocket } from '../context/useSocket.js';
 
 const POLL_INTERVAL_MS = 15000;
 
@@ -21,42 +22,59 @@ export default function DummyCompressorSimulator() {
   const [isHidden, setIsHidden]     = useState(
     () => localStorage.getItem('dummyCompressorWidgetHidden') === 'true'
   );
+  const isMountedRef = useRef(true);
+  const { socket } = useSocket();
+
+  const fetchPrediction = useCallback(async (machineId) => {
+    try {
+      const res = await api.post(`/ml/predict/${machineId}`);
+      if (isMountedRef.current) setPrediction(res.data);
+    } catch {
+      // Belum ada data sensor lengkap masuk — biarkan status "siap menerima".
+    }
+  }, []);
 
   // Pastikan aset dummy ada, lalu mulai polling prediksi kesehatan.
   // Data sensornya sendiri sekarang dikirim dari luar aplikasi (lihat
   // Simulasi/Version 2/simulasi-input data), bukan lewat front-end ini.
   useEffect(() => {
-    let isMounted = true;
+    isMountedRef.current = true;
     let intervalId;
-
-    const fetchPrediction = async (machineId) => {
-      try {
-        const res = await api.post(`/ml/predict/${machineId}`);
-        if (isMounted) setPrediction(res.data);
-      } catch {
-        // Belum ada data sensor lengkap masuk — biarkan status "siap menerima".
-      }
-    };
 
     const ensureAsset = async () => {
       try {
         const res = await api.get('/assets');
         const existing = res.data.find(a => a.machine_id === DUMMY_COMPRESSOR.machine_id);
         const current = existing || (await api.post('/assets', DUMMY_COMPRESSOR)).data;
-        if (!isMounted) return;
+        if (!isMountedRef.current) return;
 
         setAsset(current);
         setStatus('ready');
         fetchPrediction(current.machine_id);
         intervalId = setInterval(() => fetchPrediction(current.machine_id), POLL_INTERVAL_MS);
       } catch {
-        if (isMounted) setStatus('error');
+        if (isMountedRef.current) setStatus('error');
       }
     };
 
     ensureAsset();
-    return () => { isMounted = false; if (intervalId) clearInterval(intervalId); };
-  }, []);
+    return () => { isMountedRef.current = false; if (intervalId) clearInterval(intervalId); };
+  }, [fetchPrediction]);
+
+  // Refresh instan begitu ada data sensor baru untuk mesin dummy ini,
+  // tanpa menunggu siklus polling 15 detik.
+  useEffect(() => {
+    if (!socket || !asset) return;
+    const handleUpdate = (payload) => {
+      if (payload?.machine_id === asset.machine_id) fetchPrediction(asset.machine_id);
+    };
+    socket.on('sensor_data_update', handleUpdate);
+    socket.on('machine_alert', handleUpdate);
+    return () => {
+      socket.off('sensor_data_update', handleUpdate);
+      socket.off('machine_alert', handleUpdate);
+    };
+  }, [socket, asset, fetchPrediction]);
 
   const isFault   = prediction?.overall_health_score < 0.7
                  || prediction?.risk_level === 'critical'

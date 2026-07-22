@@ -1,5 +1,5 @@
 // src/pages/DashboardPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
 import ErrorState from '../components/ErrorState.jsx';
 import { 
@@ -72,46 +72,46 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const fetchStats = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [statsResponse, allWosResponse, historyResponse] = await Promise.all([
+          api.get('/dashboard/stats'),
+          api.get('/workorders'),
+          api.get('/workorders/history'),
+      ]);
+
+      const allWOs = [...allWosResponse.data, ...historyResponse.data];
+      const assetMap = {};
+
+      allWOs.forEach(wo => {
+          const assetId = wo.asset_id;
+          if (!assetId) return;
+          if (!assetMap[assetId]) {
+              assetMap[assetId] = { asset_name: wo.asset_name, open: 0, completed: 0 };
+          }
+          if (wo.status === 'completed') assetMap[assetId].completed += 1;
+          else assetMap[assetId].open += 1;
+      });
+
+      setStats({
+          ...statsResponse.data,
+          wo_asset_report: Object.values(assetMap)
+      });
+
+    } catch (err) {
+      if (err.response) setError(`Gagal: ${err.response.status}`);
+      else if (err.request) setError("Koneksi Server Gagal");
+      else setError(err.message);
+      console.error(err);
+    }
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [statsResponse, allWosResponse, historyResponse] = await Promise.all([
-            api.get('/dashboard/stats'),
-            api.get('/workorders'),
-            api.get('/workorders/history'),
-        ]);
-        
-        const allWOs = [...allWosResponse.data, ...historyResponse.data];
-        const assetMap = {};
-
-        allWOs.forEach(wo => {
-            const assetId = wo.asset_id;
-            if (!assetId) return; 
-            if (!assetMap[assetId]) {
-                assetMap[assetId] = { asset_name: wo.asset_name, open: 0, completed: 0 };
-            }
-            if (wo.status === 'completed') assetMap[assetId].completed += 1;
-            else assetMap[assetId].open += 1; 
-        });
-        
-        setStats({
-            ...statsResponse.data,
-            wo_asset_report: Object.values(assetMap)
-        });
-
-      } catch (err) {
-        if (err.response) setError(`Gagal: ${err.response.status}`);
-        else if (err.request) setError("Koneksi Server Gagal");
-        else setError(err.message);
-        console.error(err);
-      }
-      setLoading(false);
-    };
-
     fetchStats();
-  }, []); 
+  }, [fetchStats]);
 
   if (error) return <ErrorState message={error} />;
 
