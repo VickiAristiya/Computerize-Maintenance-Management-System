@@ -122,8 +122,11 @@ def get_dashboard_stats():
         
         # --- 2. Statistik Inventaris (NEW) ---
         total_components = ComponentItem.objects.count()
-        # Hitung komponen dengan stok < 5
-        low_stock_components = ComponentItem.objects(stock_quantity__lt=5).count()
+        # Hitung komponen dengan stok di bawah ambang batasnya masing-masing
+        low_stock_components = sum(
+            1 for c in ComponentItem.objects.only('stock_quantity', 'low_stock_threshold')
+            if c.stock_quantity < (c.low_stock_threshold if c.low_stock_threshold is not None else 5)
+        )
         
         # --- 3. Statistik WO ---
         open_wo = WorkOrder.objects(status='open').count()
