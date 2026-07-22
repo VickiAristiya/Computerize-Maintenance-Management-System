@@ -35,12 +35,12 @@ def create_dummy_data():
 
         # Inventory components — disesuaikan dengan 5 mesin: Induksi, Forging, Robot, Motor AC, Compressor
         components_data = [
-            {'name': 'Kumparan Induksi',        'part_number': 'IC-1001', 'stock_quantity': 2,  'location': 'Gudang Utama'},
+            {'name': 'Kumparan Induksi',        'part_number': 'IC-1001', 'stock_quantity': 2,  'location': 'Gudang Utama', 'low_stock_threshold': 3},
             {'name': 'Capacitor Bank',           'part_number': 'CB-2050', 'stock_quantity': 4,  'location': 'Gudang Utama'},
             {'name': 'Pompa Air Pendingin',      'part_number': 'CWP-3010', 'stock_quantity': 5, 'location': 'Gudang Cabang'},
             {'name': 'Die Set Forging',          'part_number': 'FD-4400', 'stock_quantity': 3,  'location': 'Gudang Utama'},
             {'name': 'Hydraulic Cylinder',       'part_number': 'HC-5500', 'stock_quantity': 4,  'location': 'Gudang Utama'},
-            {'name': 'Guide Bushing',            'part_number': 'GB-6600', 'stock_quantity': 10, 'location': 'Gudang Cabang'},
+            {'name': 'Guide Bushing',            'part_number': 'GB-6600', 'stock_quantity': 10, 'location': 'Gudang Cabang', 'low_stock_threshold': 8},
             {'name': 'Servo Motor',              'part_number': 'SVM-7700', 'stock_quantity': 3, 'location': 'Gudang Sisi'},
             {'name': 'Encoder Module',           'part_number': 'ENC-8800', 'stock_quantity': 6, 'location': 'Gudang Sisi'},
             {'name': 'Robot Gripper',            'part_number': 'GRP-9900', 'stock_quantity': 4, 'location': 'Gudang Sisi'},
@@ -55,7 +55,8 @@ def create_dummy_data():
             comp = safe_save(ComponentItem, {
                 'part_number': item['part_number'],
                 'stock_quantity': item['stock_quantity'],
-                'location': item['location']
+                'location': item['location'],
+                'low_stock_threshold': item.get('low_stock_threshold', 5)
             }, name=item['name'])
             components.append(comp)
 

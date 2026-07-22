@@ -8,12 +8,12 @@ import requests
 import threading
 import time
 import statistics
-import warnings
-warnings.filterwarnings("ignore")
+from collections import Counter
 
-BASE_URL  = "https://cmms-test-domain.duckdns.org"
+BASE_URL  = "https://cmms-polmanbandung.site"
 EMAIL     = "admin@cmms.com"
 PASSWORD  = "123456"
+VERIFY_TLS = True
 
 # Skenario jumlah virtual user
 USER_SCENARIOS = [10, 50, 100, 200]
@@ -22,6 +22,7 @@ USER_SCENARIOS = [10, 50, 100, 200]
 ENDPOINT_METHOD = "POST"
 ENDPOINT_PATH   = "/api/ml/sensor-data"
 ENDPOINT_NAME   = "Kirim Sensor Bearing (ML Predict)"
+SUCCESS_CODES   = {200, 201}
 
 # Payload sensor bearing
 SENSOR_PAYLOAD = {
@@ -38,7 +39,8 @@ def get_token():
     r = requests.post(
         f"{BASE_URL}/api/auth/login",
         json={"email": EMAIL, "password": PASSWORD},
-        timeout=15, verify=False,
+        timeout=15,
+        verify=VERIFY_TLS,
     )
     return r.json().get("access_token") or r.json().get("token", "")
 
@@ -59,23 +61,26 @@ def do_request(results, idx):
             ENDPOINT_METHOD,
             f"{BASE_URL}{ENDPOINT_PATH}",
             json=SENSOR_PAYLOAD,
-            headers=HEADERS, timeout=20, verify=False,
+            headers=HEADERS,
+            timeout=20,
+            verify=VERIFY_TLS,
         )
         elapsed = (time.perf_counter() - t0) * 1000
         results[idx] = {
             "ms":   elapsed,
-            "ok":   r.status_code == 200,
+            "ok":   r.status_code in SUCCESS_CODES,
             "code": r.status_code,
+            "body": r.text[:200],
         }
-    except Exception:
-        results[idx] = {"ms": None, "ok": False, "code": "ERR"}
+    except Exception as exc:
+        results[idx] = {"ms": None, "ok": False, "code": "ERR", "body": str(exc)[:200]}
 
 # ── Jalankan skenario ─────────────────────────────────────────────────────────
 print(f"Endpoint diuji : {ENDPOINT_NAME} [{ENDPOINT_METHOD} {ENDPOINT_PATH}]")
 print(f"Skenario       : {USER_SCENARIOS} concurrent users\n")
 
-print(f"{'Pengguna Virtual':>18} {'Throughput (req/s)':>20} {'Avg Response (ms)':>20} {'Error Rate (%)':>16}")
-print("-" * 80)
+print(f"{'Pengguna Virtual':>18} {'Throughput (req/s)':>20} {'Avg Response (ms)':>20} {'Error Rate (%)':>16}  Status")
+print("-" * 96)
 
 summary = []
 
@@ -96,23 +101,26 @@ for n_users in USER_SCENARIOS:
     times     = [r["ms"] for r in results if r and r["ms"] is not None]
     n_success = sum(1 for r in results if r and r["ok"])
     n_error   = n_users - n_success
+    codes     = Counter(r["code"] for r in results if r)
+    code_text = ", ".join(f"{code}:{count}" for code, count in sorted(codes.items(), key=lambda item: str(item[0])))
 
     avg_ms     = statistics.mean(times) if times else 0
     throughput = n_users / t_total if t_total > 0 else 0
     error_rate = (n_error / n_users) * 100
 
-    summary.append((n_users, throughput, avg_ms, error_rate))
-    print(f"{n_users:>18} {throughput:>19.2f} {avg_ms:>19.0f} {error_rate:>15.1f}")
+    failed = next((r for r in results if r and not r["ok"]), None)
+    summary.append((n_users, throughput, avg_ms, error_rate, code_text, failed))
+    print(f"{n_users:>18} {throughput:>19.2f} {avg_ms:>19.0f} {error_rate:>15.1f}  {code_text}")
 
 # ── Ringkasan ─────────────────────────────────────────────────────────────────
 print("\n" + "=" * 80)
 print("  RINGKASAN HASIL PENGUJIAN BEBAN")
 print(f"  Endpoint : {ENDPOINT_NAME} — {BASE_URL}{ENDPOINT_PATH}")
 print("=" * 80)
-print(f"{'Pengguna Virtual':>18} {'Throughput (req/s)':>20} {'Avg Response (ms)':>20} {'Error Rate (%)':>16}")
-print("-" * 80)
+print(f"{'Pengguna Virtual':>18} {'Throughput (req/s)':>20} {'Avg Response (ms)':>20} {'Error Rate (%)':>16}  Status")
+print("-" * 96)
 
-for n_users, tput, avg, err in summary:
+for n_users, tput, avg, err, code_text, failed in summary:
     if err > 10:
         ket = " [Tidak Stabil]"
     elif avg > 2000:
@@ -121,6 +129,9 @@ for n_users, tput, avg, err in summary:
         ket = " [Cukup]"
     else:
         ket = " [Baik]"
-    print(f"{n_users:>18} {tput:>19.2f} {avg:>19.0f} {err:>15.1f}{ket}")
+    print(f"{n_users:>18} {tput:>19.2f} {avg:>19.0f} {err:>15.1f}  {code_text}{ket}")
+
+    if failed:
+        print(f"  Contoh gagal ({failed['code']}): {failed['body']}")
 
 print("=" * 80)

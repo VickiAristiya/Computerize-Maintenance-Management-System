@@ -14,6 +14,7 @@ class ComponentItem(db.Document):
     part_number = db.StringField()
     stock_quantity = db.IntField(default=0)
     location = db.StringField(default='Gudang Utama')
+    low_stock_threshold = db.IntField(default=5)
 
     def to_json(self):
         return {
@@ -21,7 +22,8 @@ class ComponentItem(db.Document):
             "name": self.name,
             "part_number": self.part_number,
             "stock_quantity": self.stock_quantity,
-            "location": self.location
+            "location": self.location,
+            "low_stock_threshold": self.low_stock_threshold if self.low_stock_threshold is not None else 5
         }
 
 # --- Model Utama Aset (Mesin) ---

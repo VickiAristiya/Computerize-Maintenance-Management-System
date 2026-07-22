@@ -1,10 +1,13 @@
 # /cmms-backend/app/api/inventory_routes.py
 from flask import Blueprint, request, jsonify
 from app.models import ComponentItem
+from app.decorators import get_role_from_request
 from mongoengine.errors import NotUniqueError, DoesNotExist
 
 # Buat Blueprint baru
 inventory_bp = Blueprint('inventory_bp', __name__)
+
+DEFAULT_LOW_STOCK_THRESHOLD = 5
 
 # --- GET: Mendapatkan SEMUA Komponen di Gudang ---
 @inventory_bp.route('/components', methods=['GET'])
@@ -24,11 +27,21 @@ def create_component():
         if not data.get('name') or not data.get('stock_quantity'):
             return jsonify({"error": "Nama dan Kuantitas Stok diperlukan"}), 400
 
+        # Hanya Manager yang boleh menentukan ambang batas stok rendah kustom;
+        # role lain (atau request tanpa role yang bisa dikenali) selalu pakai default.
+        threshold = DEFAULT_LOW_STOCK_THRESHOLD
+        if get_role_from_request() == 'manager' and data.get('low_stock_threshold') is not None:
+            try:
+                threshold = int(data['low_stock_threshold'])
+            except (ValueError, TypeError):
+                return jsonify({"error": "Ambang batas stok rendah harus berupa angka."}), 400
+
         new_comp = ComponentItem(
             name=data['name'],
             part_number=data.get('part_number', ''),
             stock_quantity=int(data['stock_quantity']),
-            location=data.get('location', 'Gudang Utama')
+            location=data.get('location', 'Gudang Utama'),
+            low_stock_threshold=threshold
         )
         new_comp.save()
         return jsonify(new_comp.to_json()), 201
@@ -46,6 +59,14 @@ def update_component(item_id):
     try:
         data = request.get_json()
         comp = ComponentItem.objects.get(id=item_id)
+
+        if 'low_stock_threshold' in data:
+            if get_role_from_request() != 'manager':
+                return jsonify({"error": "Akses Ditolak: Hanya Manager yang dapat mengubah ambang batas stok rendah."}), 403
+            try:
+                comp.low_stock_threshold = int(data['low_stock_threshold'])
+            except (ValueError, TypeError):
+                return jsonify({"error": "Ambang batas stok rendah harus berupa angka."}), 400
 
         if 'name' in data:
             comp.name = data['name']

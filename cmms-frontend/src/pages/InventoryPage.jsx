@@ -5,15 +5,19 @@ import { FileWarning, Plus, Loader2, Edit, Trash2, PackagePlus, Save, Box, MapPi
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import Modal from '../components/Modal.jsx';
+import { useAuth } from '../context/useAuth.js';
 
 // --- Komponen Form (digunakan untuk Create dan Edit) ---
 function InventoryForm({ onSave, initialData, onClose }) {
+    const { checkRole } = useAuth();
+    const isManager = checkRole(['manager']);
     const isEditMode = !!initialData;
     const [name, setName] = useState(initialData?.name || '');
     const [partNumber, setPartNumber] = useState(initialData?.part_number || '');
     const [stock, setStock] = useState(initialData?.stock_quantity || 0);
     const [location, setLocation] = useState(initialData?.location || 'Gudang Utama');
-    
+    const [lowStockThreshold, setLowStockThreshold] = useState(initialData?.low_stock_threshold ?? 5);
+
     const [error, setError] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -22,13 +26,16 @@ function InventoryForm({ onSave, initialData, onClose }) {
         setError(null);
         setIsSubmitting(true);
 
-        const payload = { 
-            name, 
-            part_number: partNumber, 
-            stock_quantity: parseInt(stock, 10), 
-            location 
+        const payload = {
+            name,
+            part_number: partNumber,
+            stock_quantity: parseInt(stock, 10),
+            location
         };
-        
+        if (isManager) {
+            payload.low_stock_threshold = parseInt(lowStockThreshold, 10);
+        }
+
         try {
             let response;
             if (isEditMode) {
@@ -69,6 +76,12 @@ function InventoryForm({ onSave, initialData, onClose }) {
                     <label htmlFor="compLocation" className="block text-sm font-medium text-slate-700 mb-1">Lokasi di Gudang</label>
                     <input type="text" id="compLocation" value={location} onChange={e => setLocation(e.target.value)} className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition-colors"/>
                 </div>
+                {isManager && (
+                    <div>
+                        <label htmlFor="compThreshold" className="block text-sm font-medium text-slate-700 mb-1">Ambang Batas Stok Rendah</label>
+                        <input type="number" id="compThreshold" value={lowStockThreshold} onChange={e => setLowStockThreshold(e.target.value)} min="0" className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-blue-500 focus:border-blue-500 transition-colors"/>
+                    </div>
+                )}
             </div>
             <div className="text-right pt-4 flex justify-end gap-3">
                 <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 transition-colors">Batal</button>
@@ -156,9 +169,9 @@ export default function InventoryPage() {
     };
 
     // Helper untuk warna stok
-    const getStockBadgeClass = (qty) => {
+    const getStockBadgeClass = (qty, threshold = 5) => {
         if (qty === 0) return 'bg-red-100 text-red-700 border-red-200';
-        if (qty < 5) return 'bg-amber-100 text-amber-700 border-amber-200';
+        if (qty < threshold) return 'bg-amber-100 text-amber-700 border-amber-200';
         return 'bg-green-100 text-green-700 border-green-200';
     };
 
@@ -172,10 +185,11 @@ export default function InventoryPage() {
         const matchSearch = item.name.toLowerCase().includes(q) ||
           (item.part_number || '').toLowerCase().includes(q) ||
           (item.location || '').toLowerCase().includes(q);
+        const threshold = item.low_stock_threshold ?? 5;
         const matchStock = stockFilter === 'all' ||
           (stockFilter === 'empty' && item.stock_quantity === 0) ||
-          (stockFilter === 'low' && item.stock_quantity > 0 && item.stock_quantity < 5) ||
-          (stockFilter === 'available' && item.stock_quantity >= 5);
+          (stockFilter === 'low' && item.stock_quantity > 0 && item.stock_quantity < threshold) ||
+          (stockFilter === 'available' && item.stock_quantity >= threshold);
         return matchSearch && matchStock;
       })
       .sort((a, b) => {
@@ -237,8 +251,8 @@ export default function InventoryPage() {
                   className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white shrink-0"
                 >
                   <option value="all">Semua Stok</option>
-                  <option value="available">Tersedia (≥5)</option>
-                  <option value="low">Stok Rendah (1–4)</option>
+                  <option value="available">Tersedia</option>
+                  <option value="low">Stok Rendah</option>
                   <option value="empty">Habis (0)</option>
                 </select>
               </div>
@@ -292,7 +306,7 @@ export default function InventoryPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 font-mono">{item.part_number || '-'}</td>
                                         
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${getStockBadgeClass(item.stock_quantity)}`}>
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${getStockBadgeClass(item.stock_quantity, item.low_stock_threshold ?? 5)}`}>
                                                 {item.stock_quantity} Unit
                                             </span>
                                         </td>

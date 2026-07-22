@@ -8,7 +8,7 @@ import requests
 import time
 import statistics
 
-BASE_URL = "https://cmms-test-domain.duckdns.org"
+BASE_URL = "https://cmms-polmanbandung.site"
 N = 10  # jumlah pengulangan per endpoint
 
 # ── Login untuk dapat token ───────────────────────────────────────────────────
