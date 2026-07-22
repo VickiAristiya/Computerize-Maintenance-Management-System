@@ -4,38 +4,61 @@ from flask_mongoengine import MongoEngine
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from flask_socketio import SocketIO
+from dotenv import load_dotenv
 import os
+
+# Baca cmms-backend/.env (di-gitignore, beda isi per environment) ke os.environ.
+# Dilakukan di sini (bukan cuma di run.py) supaya tetap ke-load walau app
+# dijalankan lewat entry point lain (mis. gunicorn yang import create_app langsung).
+load_dotenv()
 
 # Inisialisasi Database
 db = MongoEngine()
 bcrypt = Bcrypt()
 socketio = SocketIO()
 
+# Origin dev lokal yang selalu diizinkan (Vite dev server & CRA legacy).
+_DEV_ORIGINS = ["http://localhost:3000", "http://localhost:5173"]
+
+
+def _get_cors_origins():
+    """Dev selalu dapat localhost. Production tambahkan domainnya sendiri lewat
+    CORS_EXTRA_ORIGINS di .env (comma-separated) — tidak perlu edit kode ini lagi
+    tiap ganti/tambah domain."""
+    extra = os.environ.get('CORS_EXTRA_ORIGINS', '')
+    extra_origins = [o.strip() for o in extra.split(',') if o.strip()]
+    return _DEV_ORIGINS + extra_origins
+
+
 def create_app():
     app = Flask(__name__)
-    
-    # --- KONFIGURASI KONEKSI MONGODB LOKAL ---
-    DB_USERNAME = "vicki"
-    DB_PASSWORD = "123456"
-    DB_NAME = "cmms_db"      
-    AUTH_DB = "admin"        
-    
+
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default_insecure_key_anda_harus_menggantinya')
-    
+
+    # --- KONFIGURASI KONEKSI MONGODB ---
+    # Fallback value = setup default untuk dev lokal; production set lewat .env.
+    db_username = os.environ.get('MONGO_USERNAME', 'vicki')
+    db_password = os.environ.get('MONGO_PASSWORD', '123456')
+    db_name = os.environ.get('MONGO_DB_NAME', 'cmms_db')
+    db_host = os.environ.get('MONGO_HOST', 'localhost')
+    auth_db = os.environ.get('MONGO_AUTH_DB', 'admin')
+
     app.config['MONGODB_SETTINGS'] = {
-        'db': DB_NAME,
-        'host': f'mongodb://{DB_USERNAME}:{DB_PASSWORD}@localhost:27017/{DB_NAME}?authSource={AUTH_DB}'
+        'db': db_name,
+        'host': f'mongodb://{db_username}:{db_password}@{db_host}:27017/{db_name}?authSource={auth_db}'
     }
-    
+
     # Inisialisasi DB dan Bcrypt dengan aplikasi Flask
     db.init_app(app)
-    bcrypt.init_app(app) 
-    
+    bcrypt.init_app(app)
+
+    cors_origins = _get_cors_origins()
+
     # Izinkan CORS
-    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "http://localhost:5173"]}})
+    CORS(app, resources={r"/api/*": {"origins": cors_origins}})
 
     # Inisialisasi SocketIO untuk push real-time (notifikasi & status mesin)
-    socketio.init_app(app, cors_allowed_origins=["http://localhost:3000", "http://localhost:5173"])
+    socketio.init_app(app, cors_allowed_origins=cors_origins)
 
     # Daftarkan blueprint (rute) Anda
     
