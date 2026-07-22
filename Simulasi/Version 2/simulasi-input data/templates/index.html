@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulasi Sensor Eksternal — CMMS</title>
+<style>
+  :root {
+    --blue: #2563eb; --blue-dark: #1d4ed8;
+    --slate-50: #f8fafc; --slate-100: #f1f5f9; --slate-200: #e2e8f0;
+    --slate-400: #94a3b8; --slate-500: #64748b; --slate-700: #334155; --slate-800: #1e293b;
+    --green: #16a34a; --red: #dc2626; --orange: #ea580c; --yellow: #ca8a04;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--slate-50); color: var(--slate-800);
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+  header.page { margin-bottom: 24px; }
+  header.page h1 { font-size: 20px; margin: 0 0 4px; }
+  header.page p { margin: 0; color: var(--slate-500); font-size: 13px; line-height: 1.6; }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 999px; background: #dbeafe; color: var(--blue-dark); margin-bottom: 10px;
+  }
+  .card {
+    background: #fff; border: 1px solid var(--slate-200); border-radius: 12px;
+    padding: 20px; margin-bottom: 20px;
+  }
+  .card h2 { font-size: 14px; margin: 0 0 14px; color: var(--slate-700); }
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--slate-500); margin-bottom: 4px; }
+  input[type=text], input[type=number], select {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--slate-200); border-radius: 8px;
+    font-size: 14px; color: var(--slate-800); background: #fff;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px #dbeafe; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+  .field { margin-bottom: 14px; }
+  .unit { font-weight: 400; color: var(--slate-400); }
+  button.submit {
+    background: var(--blue); color: #fff; border: none; padding: 11px 22px;
+    border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  button.submit:hover { background: var(--blue-dark); }
+  .error {
+    border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c;
+    padding: 12px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 20px;
+  }
+  .success {
+    display: flex; align-items: center; gap: 8px;
+    border: 1px solid #bbf7d0; background: #f0fdf4; color: #15803d;
+    padding: 12px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; margin-bottom: 20px;
+  }
+  .success svg { flex-shrink: 0; }
+  .footnote { font-size: 12px; color: var(--slate-400); margin-top: 6px; }
+  code { background: var(--slate-100); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="page">
+      <span class="badge">Simulasi Sensor Eksternal</span>
+      <h1>Kirim Data Sensor ke CMMS</h1>
+      <p>
+        Form ini berjalan terpisah dari aplikasi CMMS dan mengirim data langsung ke backend
+        (<code>{{ api_base }}/ml/sensor-data</code>) lewat HTTP — meniru perangkat sensor
+        sungguhan di lapangan, bukan input dari dalam aplikasi.
+      </p>
+    </header>
+
+    {% if error %}
+      <div class="error"><strong>Gagal:</strong> {{ error }}</div>
+    {% endif %}
+
+    {% if sent %}
+      <div class="success">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        Data sensor berhasil dikirim ke CMMS. Cek hasil health &amp; risk-nya di aplikasi CMMS.
+      </div>
+    {% endif %}
+
+    <form method="post" class="card" id="sensor-form">
+      <h2>Data Sensor</h2>
+
+      <div class="field">
+        <label for="preset">Preset Nilai (opsional)</label>
+        <select id="preset">
+          {% for p in presets %}
+            <option value="{{ p.id }}">{{ p.label }} — {{ p.description }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="machine_id">Machine ID</label>
+        <input type="text" id="machine_id" name="machine_id" value="{{ machine_id }}">
+      </div>
+
+      <div class="grid">
+        {% for key, label, unit, default in fields %}
+        <div class="field">
+          <label for="{{ key }}">{{ label }} <span class="unit">({{ unit }})</span></label>
+          <input type="number" step="any" id="{{ key }}" name="{{ key }}" value="{{ form_values[key] }}">
+        </div>
+        {% endfor %}
+      </div>
+
+      <button type="submit" class="submit">Kirim Data Sensor</button>
+      <p class="footnote">Data akan disimpan sebagai riwayat sensor lalu diproses model ML — hasilnya langsung terlihat pada widget health &amp; risk di aplikasi CMMS.</p>
+    </form>
+  </div>
+
+  <script>
+    const PRESETS = {{ presets | tojson }};
+    document.getElementById('preset').addEventListener('change', (e) => {
+      const preset = PRESETS.find(p => p.id === e.target.value);
+      if (!preset || !preset.data) return;
+      Object.entries(preset.data).forEach(([key, value]) => {
+        const input = document.getElementById(key);
+        if (input) input.value = value;
+      });
+    });
+  </script>
+</body>
+</html>
