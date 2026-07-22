@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, request
 from app import socketio
 from app.ml_service import CompressorPredictor, COMPONENTS
 from app.ml_registry import get_predictor
-from app.models import Asset, SensorData
+from app.models import Asset, SensorData, AssetHealthStatus
 
 # risk_level yang dianggap cukup penting untuk memicu alert real-time
 ALERT_RISK_LEVELS = {"high", "critical"}
@@ -314,6 +314,27 @@ def add_sensor_data():
         }
 
     sensor_data.save()
+
+    # --- Simpan snapshot kesehatan asset (dipakai dashboard/notifikasi) ---
+    # Prediksi di atas sudah dihitung sekali di sini; simpan hasilnya supaya
+    # endpoint dashboard tinggal baca, tidak perlu predictor.predict() lagi.
+    if prediction and prediction.get("ok"):
+        AssetHealthStatus.objects(asset=asset).update_one(
+            set__asset=asset,
+            set__machine_id=asset.machine_id,
+            set__asset_name=asset.name,
+            set__overall_health_score=prediction.get("overall_health_score"),
+            set__health_score=prediction.get("health_score"),
+            set__failure_probability=prediction.get("failure_probability"),
+            set__predicted_days=prediction.get("predicted_days"),
+            set__risk_level=prediction.get("risk_level"),
+            set__priority=prediction.get("priority"),
+            set__recommendation=prediction.get("recommendation"),
+            set__due_date=prediction.get("due_date"),
+            set__components=prediction.get("components") or {},
+            set__computed_at=sensor_data.timestamp,
+            upsert=True,
+        )
 
     # --- Push real-time ke frontend, agar dashboard/monitoring tidak perlu di-refresh manual ---
     update_payload = {

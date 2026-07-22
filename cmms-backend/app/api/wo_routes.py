@@ -1,7 +1,8 @@
 # /cmms-backend/app/api/wo_routes.py
 from flask import Blueprint, request, jsonify, make_response
-from app.models import WorkOrder, Asset, User, ComponentItem 
+from app.models import WorkOrder, Asset, User, ComponentItem
 from mongoengine.errors import DoesNotExist
+from mongoengine.queryset.visitor import Q
 import datetime
 import csv 
 from io import StringIO, BytesIO
@@ -71,20 +72,71 @@ def get_work_orders():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- GET History ---
+# --- GET History (paginated, tanpa gambar di list) ---
 @wo_bp.route('/workorders/history', methods=['GET'])
 def get_work_order_history():
     try:
-        wos_raw = WorkOrder.objects(status='completed').order_by('-completed_at')
-        
+        page = max(int(request.args.get('page', 1)), 1)
+        limit = min(max(int(request.args.get('limit', 20)), 1), 100)
+        search = (request.args.get('search') or '').strip()
+        type_filter = request.args.get('type', 'all')
+        priority_filter = request.args.get('priority', 'all')
+        sort_key = request.args.get('sort', 'date_desc')
+
+        query = WorkOrder.objects(status='completed')
+
+        if type_filter != 'all':
+            query = query.filter(type=type_filter)
+        if priority_filter != 'all':
+            query = query.filter(priority=priority_filter)
+
+        if search:
+            matching_asset_ids = [a.id for a in Asset.objects(name__icontains=search).only('id')]
+            matching_user_ids = [u.id for u in User.objects(name__icontains=search).only('id')]
+            q = Q(title__icontains=search)
+            if matching_asset_ids:
+                q = q | Q(asset__in=matching_asset_ids)
+            if matching_user_ids:
+                q = q | Q(assigned_to__in=matching_user_ids)
+            query = query.filter(q)
+
+        sort_map = {
+            'date_desc': '-completed_at',
+            'date_asc': 'completed_at',
+            'title_asc': 'title',
+            'title_desc': '-title',
+        }
+        query = query.order_by(sort_map.get(sort_key, '-completed_at'))
+
+        total = query.count()
+        page_items = query.skip((page - 1) * limit).limit(limit)
+
         safe_wos = []
-        for wo in wos_raw:
+        for wo in page_items:
             try:
-                safe_wos.append(wo.to_json())
+                safe_wos.append(wo.to_json(include_images=False))
             except Exception:
                 continue
-                
-        return jsonify(safe_wos), 200
+
+        return jsonify({
+            "items": safe_wos,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": max((total + limit - 1) // limit, 1),
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# --- GET Work Order Detail (dengan gambar) ---
+@wo_bp.route('/workorders/<wo_id>', methods=['GET'])
+def get_work_order_detail(wo_id):
+    try:
+        wo = WorkOrder.objects.get(id=wo_id)
+        return jsonify(wo.to_json()), 200
+    except DoesNotExist:
+        return jsonify({"error": "Work Order tidak ditemukan"}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -107,14 +107,14 @@ class WorkOrder(db.Document):
     due_date = db.DateTimeField()
     completed_at = db.DateTimeField()
 
-    def to_json(self):
+    def to_json(self, include_images=True):
         user_name = self.assigned_to.name if self.assigned_to else ""
         asset_name = self.asset.name if self.asset else "Aset Tidak Ditemukan"
         asset_id = str(self.asset.id) if self.asset else None
         component_name = self.component.name if self.component else ""
         component_id = str(self.component.id) if self.component else None
-        
-        return {
+
+        data = {
             "id": str(self.id),
             "title": self.title,
             "description": self.description,
@@ -127,12 +127,21 @@ class WorkOrder(db.Document):
             "asset_name": asset_name,
             "assigned_to": user_name,
             "created_by_role": self.created_by_role,
-            "initial_image": self.initial_image,
-            "evidence_image": self.evidence_image,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "due_date": self.due_date.isoformat() if self.due_date else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
         }
+
+        if include_images:
+            data["initial_image"] = self.initial_image
+            data["evidence_image"] = self.evidence_image
+        else:
+            # List view tidak perlu payload gambar (bisa MB per WO) — dipakai
+            # frontend hanya untuk menandai ada/tidaknya bukti foto.
+            data["has_initial_image"] = bool(self.initial_image)
+            data["has_evidence_image"] = bool(self.evidence_image)
+
+        return data
 
 # --- Model Maintenance Schedule ---
 class MaintenanceSchedule(db.Document):
@@ -237,6 +246,14 @@ class SensorData(db.Document):
     predicted_failure_days = db.FloatField()  # Hari sampai failure
     failure_probability = db.FloatField()     # Probabilitas failure (0-1)
 
+    meta = {
+        # Query paling umum: data sensor terbaru milik satu asset, diurutkan
+        # descending by timestamp. Tanpa index ini MongoDB collection-scan +
+        # in-memory sort seluruh koleksi tiap kali dipanggil (lih. get_predictive
+        # dashboard & get_sensor_history) — makin lambat seiring data bertambah.
+        'indexes': [('asset', '-timestamp')]
+    }
+
     def to_json(self):
         return {
             "id": str(self.id),
@@ -272,4 +289,47 @@ class SensorData(db.Document):
             "health_score": self.health_score,
             "predicted_failure_days": self.predicted_failure_days,
             "failure_probability": self.failure_probability
+        }
+
+# --- Model Snapshot Kesehatan Aset (hasil ML terbaru, per asset) ---
+# Dihitung SEKALI saat data sensor masuk (lih. ml_routes.add_sensor_data),
+# lalu tinggal dibaca oleh dashboard/notifikasi — bukan dihitung ulang
+# (predictor.predict) setiap kali stats/notifikasi diminta.
+class AssetHealthStatus(db.Document):
+    asset = db.ReferenceField(Asset, required=True, unique=True)
+    machine_id = db.StringField()
+    asset_name = db.StringField()
+
+    overall_health_score = db.FloatField()
+    health_score = db.FloatField()
+    failure_probability = db.FloatField()
+    predicted_days = db.FloatField()
+    risk_level = db.StringField()
+    priority = db.StringField()
+    recommendation = db.StringField()
+    due_date = db.StringField()
+
+    # Breakdown per-komponen (mis. bearing) — bentuknya sama dengan
+    # CompressorPredictor.predict()["components"]
+    components = db.DictField()
+
+    computed_at = db.DateTimeField(default=datetime.datetime.utcnow)
+
+    meta = {'indexes': ['asset']}
+
+    def to_json(self):
+        return {
+            "asset_id": str(self.asset.id),
+            "machine_id": self.machine_id,
+            "asset_name": self.asset_name,
+            "overall_health_score": self.overall_health_score,
+            "health_score": self.health_score,
+            "failure_probability": self.failure_probability,
+            "predicted_days": self.predicted_days,
+            "risk_level": self.risk_level,
+            "priority": self.priority,
+            "recommendation": self.recommendation,
+            "due_date": self.due_date,
+            "components": self.components,
+            "computed_at": self.computed_at.isoformat() if self.computed_at else None,
         }

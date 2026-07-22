@@ -1,27 +1,10 @@
 # /cmms-backend/app/api/dashboard_routes.py
 from flask import Blueprint, jsonify
-from app.models import Asset, WorkOrder, MaintenanceSchedule, ComponentItem, SensorData
-from app.ml_service import CompressorPredictor
+from app.models import Asset, WorkOrder, MaintenanceSchedule, ComponentItem, AssetHealthStatus
 import datetime
 import math
 
 dashboard_bp = Blueprint('dashboard_bp', __name__)
-predictor = CompressorPredictor()
-
-
-def _sensor_to_payload(sensor_data):
-    payload = {}
-    for column in predictor.feature_columns:
-        payload[column] = getattr(sensor_data, column, None)
-    return payload
-
-
-def _get_latest_valid_sensor(asset):
-    """Cari sensor data terbaru yang memiliki semua feature lengkap (tidak None)."""
-    for sensor in SensorData.objects(asset=asset).order_by('-timestamp').limit(50):
-        if all(getattr(sensor, col, None) is not None for col in predictor.feature_columns):
-            return sensor
-    return None
 
 COMPONENT_LABELS = {
     "bearings": "Bearing",
@@ -31,25 +14,18 @@ PRIORITY_ORDER = {'critical': 4, 'high': 3, 'medium': 2, 'low': 1, 'very_low': 0
 
 
 def get_predictive_maintenance_notifications():
-    """Notifikasi predictive maintenance untuk komponen bearing per asset."""
+    """Notifikasi predictive maintenance untuk komponen bearing per asset.
+
+    Dibaca dari snapshot AssetHealthStatus yang sudah dihitung sekali saat
+    data sensor masuk (lih. ml_routes.add_sensor_data) — endpoint ini TIDAK
+    menjalankan predictor.predict() lagi, cukup query ringan tanpa index-scan
+    berat, supaya aman dipanggil sesering apapun (termasuk polling notifikasi).
+    """
     notifications = []
 
-    if not predictor.is_ready():
-        return notifications
-
     try:
-        assets = Asset.objects()
-
-        for asset in assets:
-            latest_sensor = _get_latest_valid_sensor(asset)
-            if not latest_sensor:
-                continue
-
-            prediction = predictor.predict(_sensor_to_payload(latest_sensor))
-            if not prediction.get("ok"):
-                continue
-
-            components = prediction.get("components", {})
+        for status in AssetHealthStatus.objects():
+            components = status.components or {}
 
             # Kumpulkan komponen yang bermasalah (fault_prob > 0.3)
             faulty = []
@@ -83,22 +59,22 @@ def get_predictive_maintenance_notifications():
             worst_priority_label = {4: 'critical', 3: 'high', 2: 'medium', 1: 'low'}.get(worst_priority, 'low')
 
             notifications.append({
-                "id": f"pred-{str(asset.id)}",
-                "asset_id": str(asset.id),
-                "machine_id": asset.machine_id,
-                "asset_name": asset.name,
+                "id": f"pred-{str(status.asset.id)}",
+                "asset_id": str(status.asset.id),
+                "machine_id": status.machine_id,
+                "asset_name": status.asset_name,
                 "type": "predictive_maintenance",
                 "title": "Prediksi Maintenance Diperlukan",
-                "message": prediction.get("recommendation", ""),
+                "message": status.recommendation or "",
                 "priority": worst_priority_label,
                 "risk_level": worst_risk,
-                "overall_health_score": prediction.get("overall_health_score"),
-                "recommendation": prediction.get("recommendation", ""),
+                "overall_health_score": status.overall_health_score,
+                "recommendation": status.recommendation or "",
                 "faulty_components": faulty,
-                "due_date": prediction.get("due_date"),
-                "predicted_days": prediction.get("predicted_days"),
-                "failure_probability": prediction.get("failure_probability"),
-                "health_score": prediction.get("health_score"),
+                "due_date": status.due_date,
+                "predicted_days": status.predicted_days,
+                "failure_probability": status.failure_probability,
+                "health_score": status.health_score,
                 "link": "/work-orders",
             })
 

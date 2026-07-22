@@ -1,59 +1,95 @@
 // src/pages/MaintenanceHistoryPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api, { BASE_URL } from '../services/api';
 import {
     FileWarning, History, CalendarCheck, Wrench, HardDrive,
     Eye, X, User, CheckCircle2, AlertTriangle, Image as ImageIcon, FileText,
-    Download, FileDown, Search, ArrowUpDown
+    Download, FileDown, Search, ArrowUpDown, ChevronLeft, ChevronRight, Loader2
 } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
 import Modal from '../components/Modal.jsx';
 
+const PAGE_SIZE = 20;
+
 export default function MaintenanceHistoryPage() {
-  const [history, setHistory] = useState([]);
+  const [items, setItems] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // State untuk Detail Modal
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedWo, setSelectedWo] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // State untuk Zoom Gambar Fullscreen
   const [viewImage, setViewImage] = useState(null);
 
-  // Search, Sort & Filter
+  // Search, Sort & Filter — dikirim ke backend, bukan difilter di client,
+  // supaya tidak perlu menarik seluruh riwayat (bisa ribuan WO + foto) sekaligus.
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortKey, setSortKey] = useState('date_desc');
   const [typeFilter, setTypeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
 
+  // Debounce input pencarian agar tidak fetch di setiap ketikan
   useEffect(() => {
-    const fetchHistory = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await api.get('/workorders/history');
-        setHistory(response.data);
-      } catch (err) {
-        if (err.response) {
-          setError(`Gagal mengambil data: ${err.response.status} ${err.response.statusText}`);
-        } else if (err.request) {
-          setError("Gagal memuat data. Pastikan server Flask berjalan.");
-        } else {
-          setError(`Error: ${err.message}`);
-        }
-        console.error(err);
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const fetchHistory = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = { page, limit: PAGE_SIZE, sort: sortKey };
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (typeFilter !== 'all') params.type = typeFilter;
+      if (priorityFilter !== 'all') params.priority = priorityFilter;
+
+      const response = await api.get('/workorders/history', { params });
+      setItems(response.data.items || []);
+      setTotal(response.data.total || 0);
+      setPages(response.data.pages || 1);
+    } catch (err) {
+      if (err.response) {
+        setError(`Gagal mengambil data: ${err.response.status} ${err.response.statusText}`);
+      } else if (err.request) {
+        setError("Gagal memuat data. Pastikan server Flask berjalan.");
+      } else {
+        setError(`Error: ${err.message}`);
       }
-      setLoading(false);
-    };
+      console.error(err);
+    }
+    setLoading(false);
+  }, [page, sortKey, debouncedSearch, typeFilter, priorityFilter]);
 
+  useEffect(() => {
     fetchHistory();
-  }, []);
+  }, [fetchHistory]);
 
-  const handleViewDetail = (wo) => {
+  const hasActiveFilters = Boolean(debouncedSearch) || typeFilter !== 'all' || priorityFilter !== 'all';
+
+  // Detail (termasuk foto) baru ditarik saat user benar-benar buka modalnya —
+  // list utama tidak lagi membawa base64 gambar tiap WO.
+  const handleViewDetail = async (wo) => {
       setSelectedWo(wo);
       setIsDetailModalOpen(true);
+      setDetailLoading(true);
+      try {
+          const response = await api.get(`/workorders/${wo.id}`);
+          setSelectedWo(response.data);
+      } catch (err) {
+          console.error('Gagal memuat detail work order:', err);
+      }
+      setDetailLoading(false);
   };
 
   const handleExport = (format) => {
@@ -76,23 +112,8 @@ export default function MaintenanceHistoryPage() {
 
   if (error) return <ErrorState message={error} />;
 
-  const displayedHistory = history
-    .filter(wo => {
-      const q = searchTerm.toLowerCase();
-      const matchSearch = (wo.title || '').toLowerCase().includes(q) ||
-        (wo.asset_name || '').toLowerCase().includes(q) ||
-        (wo.assigned_to || '').toLowerCase().includes(q);
-      const matchType = typeFilter === 'all' || wo.type === typeFilter;
-      const matchPriority = priorityFilter === 'all' || wo.priority === priorityFilter;
-      return matchSearch && matchType && matchPriority;
-    })
-    .sort((a, b) => {
-      if (sortKey === 'title_asc') return (a.title || '').localeCompare(b.title || '');
-      if (sortKey === 'title_desc') return (b.title || '').localeCompare(a.title || '');
-      if (sortKey === 'date_asc') return new Date(a.completed_at) - new Date(b.completed_at);
-      if (sortKey === 'date_desc') return new Date(b.completed_at) - new Date(a.completed_at);
-      return 0;
-    });
+  const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, total);
 
   return (
     <div>
@@ -105,7 +126,7 @@ export default function MaintenanceHistoryPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => handleExport('csv')}
-            disabled={loading || history.length === 0}
+            disabled={loading || total === 0}
             className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
             title="Unduh riwayat perawatan sebagai CSV"
           >
@@ -114,7 +135,7 @@ export default function MaintenanceHistoryPage() {
           </button>
           <button
             onClick={() => handleExport('pdf')}
-            disabled={loading || history.length === 0}
+            disabled={loading || total === 0}
             className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
             title="Unduh riwayat perawatan sebagai PDF"
           >
@@ -141,7 +162,7 @@ export default function MaintenanceHistoryPage() {
             <ArrowUpDown size={15} className="text-slate-400" />
             <select
               value={sortKey}
-              onChange={e => setSortKey(e.target.value)}
+              onChange={e => { setSortKey(e.target.value); setPage(1); }}
               className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             >
               <option value="date_desc">Terbaru</option>
@@ -152,7 +173,7 @@ export default function MaintenanceHistoryPage() {
           </div>
           <select
             value={typeFilter}
-            onChange={e => setTypeFilter(e.target.value)}
+            onChange={e => { setTypeFilter(e.target.value); setPage(1); }}
             className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white shrink-0"
           >
             <option value="all">Semua Tipe</option>
@@ -161,7 +182,7 @@ export default function MaintenanceHistoryPage() {
           </select>
           <select
             value={priorityFilter}
-            onChange={e => setPriorityFilter(e.target.value)}
+            onChange={e => { setPriorityFilter(e.target.value); setPage(1); }}
             className="text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none bg-white shrink-0"
           >
             <option value="all">Semua Prioritas</option>
@@ -203,14 +224,14 @@ export default function MaintenanceHistoryPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
-                {displayedHistory.length === 0 && (
+                {items.length === 0 && (
                   <tr>
                     <td colSpan="6" className="px-6 py-12 text-center text-slate-500">
                       <div className="flex flex-col items-center gap-3">
                         <div className="p-3 bg-slate-100 rounded-full">
                             <FileWarning size={32} className="text-slate-400" />
                         </div>
-                        {history.length === 0 ? (
+                        {!hasActiveFilters ? (
                           <>
                             <p className="font-medium">Belum ada riwayat perawatan.</p>
                             <p className="text-sm">Work Order yang statusnya "Completed" akan muncul di sini.</p>
@@ -222,7 +243,7 @@ export default function MaintenanceHistoryPage() {
                     </td>
                   </tr>
                 )}
-                {displayedHistory.map(wo => (
+                {items.map(wo => (
                   <tr key={wo.id} className="hover:bg-slate-50 transition-colors">
                     
                     {/* Judul */}
@@ -291,6 +312,31 @@ export default function MaintenanceHistoryPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!loading && total > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-t border-slate-200 bg-slate-50">
+            <p className="text-xs text-slate-500">
+              Menampilkan <b>{rangeStart}-{rangeEnd}</b> dari <b>{total}</b> riwayat
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(p - 1, 1))}
+                disabled={page <= 1}
+                className="p-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-xs font-medium text-slate-600">Halaman {page} / {pages}</span>
+              <button
+                onClick={() => setPage(p => Math.min(p + 1, pages))}
+                disabled={page >= pages}
+                className="p-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -384,12 +430,17 @@ export default function MaintenanceHistoryPage() {
                       </div>
                   </div>
 
-                  {/* GALERI FOTO (DOKUMENTASI) */}
+                  {/* GALERI FOTO (DOKUMENTASI) — ditarik on-demand saat modal dibuka */}
                   <div>
                       <h3 className="font-bold text-slate-800 mb-3 flex items-center gap-2 border-b pb-2">
                           <FileText size={18}/> Dokumentasi Pekerjaan
                       </h3>
-                      
+
+                      {detailLoading ? (
+                          <div className="flex items-center justify-center gap-2 text-slate-400 text-sm py-10">
+                              <Loader2 size={18} className="animate-spin" /> Memuat foto dokumentasi...
+                          </div>
+                      ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* FOTO AWAL */}
                           <div className="bg-red-50 rounded-xl p-4 border border-red-100">
@@ -431,8 +482,9 @@ export default function MaintenanceHistoryPage() {
                               </div>
                           </div>
                       </div>
+                      )}
                   </div>
-                  
+
                   <div className="flex justify-end pt-4 border-t border-slate-100">
                       <button 
                           onClick={() => setIsDetailModalOpen(false)}

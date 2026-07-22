@@ -76,28 +76,23 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [statsResponse, allWosResponse, historyResponse] = await Promise.all([
+      const [statsResponse, assetReportResponse] = await Promise.all([
           api.get('/dashboard/stats'),
-          api.get('/workorders'),
-          api.get('/workorders/history'),
+          api.get('/workorders/report/asset_stats'),
       ]);
 
-      const allWOs = [...allWosResponse.data, ...historyResponse.data];
-      const assetMap = {};
-
-      allWOs.forEach(wo => {
-          const assetId = wo.asset_id;
-          if (!assetId) return;
-          if (!assetMap[assetId]) {
-              assetMap[assetId] = { asset_name: wo.asset_name, open: 0, completed: 0 };
-          }
-          if (wo.status === 'completed') assetMap[assetId].completed += 1;
-          else assetMap[assetId].open += 1;
-      });
+      // Endpoint report sudah mengagregasi per-asset di backend (tanpa foto
+      // base64 yang ada di payload WO penuh), jadi tinggal dipetakan ke bentuk
+      // yang dipakai chart (open = semua status yang belum selesai).
+      const wo_asset_report = assetReportResponse.data.map(r => ({
+          asset_name: r.asset_name,
+          open: r.open + r.in_progress + r.pending_approval + r.pending_verification,
+          completed: r.completed,
+      }));
 
       setStats({
           ...statsResponse.data,
-          wo_asset_report: Object.values(assetMap)
+          wo_asset_report
       });
 
     } catch (err) {
