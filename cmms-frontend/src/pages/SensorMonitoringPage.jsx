@@ -12,7 +12,7 @@ import {
 } from 'chart.js';
 import {
     ArrowLeft, RefreshCw, Activity, Thermometer, Gauge,
-    Wind, Zap, Waves, Radio, Loader2,
+    Wind, Zap, Waves, Radio, Loader2, FileDown,
 } from 'lucide-react';
 import LoadingState from '../components/LoadingState.jsx';
 import ErrorState from '../components/ErrorState.jsx';
@@ -91,6 +91,47 @@ function fmtTs(iso) {
     return new Date(iso).toLocaleString('id-ID', {
         day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
     });
+}
+
+// Bungkus nilai dengan tanda kutip kalau mengandung koma/kutip/baris baru,
+// supaya kolom seperti nama aset tidak merusak struktur CSV.
+function csvCell(value) {
+    const s = value === null || value === undefined ? '' : String(value);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function buildSensorCsv(history, fields, assetName) {
+    const header = ['Timestamp', 'Asset', 'Health Score (%)', ...fields.map(f => {
+        const meta = getFieldMeta(f);
+        return meta.unit ? `${meta.label} (${meta.unit})` : meta.label;
+    })];
+
+    const rows = history.map(r => {
+        const hPct = r.health_score != null ? Math.round(r.health_score * 100) : '';
+        return [
+            r.timestamp,
+            assetName,
+            hPct,
+            ...fields.map(f => r[f] ?? ''),
+        ];
+    });
+
+    return [header, ...rows]
+        .map(row => row.map(csvCell).join(','))
+        .join('\r\n');
+}
+
+function downloadCsv(filename, content) {
+    // Prefix BOM supaya Excel membaca karakter non-ASCII (mis. nama aset) dengan benar.
+    const blob = new Blob(['﻿' + content], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 // ── Chart satu sensor ──────────────────────────────────────────────────────
@@ -318,11 +359,13 @@ export default function SensorMonitoringPage() {
     useEffect(() => { fetchData(); }, [fetchData]);
 
     // Refresh otomatis kalau data sensor baru masuk untuk mesin yang sedang dibuka,
-    // supaya grafik/tabel tidak perlu di-refresh manual.
+    // supaya grafik/tabel tidak perlu di-refresh manual. Pakai showRefresh=true
+    // (jalur spinner kecil di tombol) supaya tidak nge-blank seluruh halaman
+    // ke <LoadingState /> tiap kali ada data sensor baru masuk.
     useEffect(() => {
         if (!socket) return;
         const handleUpdate = (payload) => {
-            if (payload?.machine_id === assetId) fetchData();
+            if (payload?.machine_id === assetId) fetchData(true);
         };
         socket.on('sensor_data_update', handleUpdate);
         socket.on('machine_alert', handleUpdate);
@@ -337,6 +380,13 @@ export default function SensorMonitoringPage() {
     if (!data)   return null;
 
     const { asset_name, history, available_fields, total } = data;
+
+    const handleExportCsv = () => {
+        const csv = buildSensorCsv(history, available_fields, asset_name);
+        const safeName = asset_name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+        const today = new Date().toISOString().slice(0, 10);
+        downloadCsv(`sensor-data-${safeName}-${today}.csv`, csv);
+    };
 
     return (
         <div>
@@ -381,6 +431,15 @@ export default function SensorMonitoringPage() {
                             </button>
                         ))}
                     </div>
+
+                    <button
+                        onClick={handleExportCsv}
+                        disabled={history.length === 0}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition"
+                    >
+                        <FileDown size={14} className="text-green-600" />
+                        Export CSV
+                    </button>
 
                     <button
                         onClick={() => fetchData(true)}

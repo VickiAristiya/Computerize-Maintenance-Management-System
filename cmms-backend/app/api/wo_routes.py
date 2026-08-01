@@ -1,5 +1,6 @@
 # /cmms-backend/app/api/wo_routes.py
 from flask import Blueprint, request, jsonify, make_response
+from app import socketio
 from app.models import WorkOrder, Asset, User, ComponentItem
 from mongoengine.errors import DoesNotExist
 from mongoengine.queryset.visitor import Q
@@ -277,6 +278,17 @@ def update_work_order(wo_id):
             wo.status = new_status
 
         wo.save()
+
+        # Push real-time ke frontend saat teknisi selesai kerja & butuh
+        # verifikasi admin/manager — supaya badge notifikasi tidak perlu
+        # menunggu polling untuk kejadian yang jelas dipicu aksi tulis ini.
+        if 'status' in data and data['status'] == 'pending_verification' and old_status != 'pending_verification':
+            socketio.emit("verification_needed", {
+                "wo_id": str(wo.id),
+                "title": wo.title,
+                "asset_name": wo.asset.name if wo.asset else None,
+            })
+
         return jsonify(wo.to_json()), 200
 
     except DoesNotExist:

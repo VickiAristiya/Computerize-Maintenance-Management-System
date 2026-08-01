@@ -14,16 +14,28 @@ const RISK_BADGE = {
   very_low: 'bg-green-100 text-green-700',
 };
 
-const NOTIFICATION_POLL_MS = 30000;
+// Jadwal perawatan (H-3, overdue, dst) berubah murni karena waktu berjalan,
+// bukan karena ada aksi tulis di backend — jadi tidak ada event WebSocket
+// yang bisa dipicu untuknya. Polling ringan ini jadi satu-satunya jalur
+// update untuk notif jenis itu. Notif predictive (ML) & verifikasi WO tetap
+// full real-time lewat WebSocket (lihat efek 'machine_alert'/'verification_needed'
+// di bawah) — polling ini cuma jaring pengaman tambahan untuk keduanya.
+const SCHEDULE_POLL_MS = 5 * 60 * 1000;
 
 // Compound tracking key:
-// - ML predictive : id + risk_level  → eskalasi risk = notif baru
+// - ML predictive : id + risk_level + tanggal → eskalasi risk ATAU risiko
+//   masih sama tapi sudah ganti hari = notif baru lagi. Tanpa bucket tanggal,
+//   mesin yang risk_level-nya persisten (mis. data sensor sudah lama tidak
+//   update) hanya akan memicu badge unread SEKALI seumur hidup, lalu diam
+//   selamanya walau health-nya tetap rendah — pola ini menyamakan perilakunya
+//   dengan notif jadwal overdue di bawah, yang memang didesain re-arm harian.
 // - Jadwal overdue: id + days_left   → update tiap hari jika belum dikerjakan
 // - Jadwal upcoming/today: id + status → hanya sekali
 // - Verifikasi WO : id saja
 const getTrackingKey = (notif) => {
   if (notif.type === 'predictive') {
-    return `${notif.id}:${notif.risk_level}`;
+    const today = new Date().toISOString().slice(0, 10);
+    return `${notif.id}:${notif.risk_level}:${today}`;
   }
   if (notif.type === 'schedule') {
     const d = notif.daysLeft;
@@ -42,7 +54,7 @@ export default function NotificationDropdown() {
   const [selectedNotif, setSelectedNotif] = useState(null);
 
   const dropdownRef = useRef(null);
-  const { socket }  = useSocket();
+  const { socket } = useSocket();
 
   // Apakah dropdown sedang terbuka — diakses dari dalam async callback
   const isOpenRef = useRef(false);
@@ -163,24 +175,31 @@ export default function NotificationDropdown() {
   }, []);
 
   // ------------------------------------------------------------------
-  // Mount: fetch awal + interval polling
+  // Mount: fetch awal + polling ringan (jaring pengaman jadwal — lihat
+  // catatan SCHEDULE_POLL_MS di atas).
   // ------------------------------------------------------------------
   useEffect(() => {
-    const init = setTimeout(() => fetchNotifications(false), 0);
-    const poll = setInterval(() => fetchNotifications(false), NOTIFICATION_POLL_MS);
-    return () => {
-      clearTimeout(init);
-      clearInterval(poll);
-    };
+    fetchNotifications(false);
+    const poll = setInterval(() => fetchNotifications(false), SCHEDULE_POLL_MS);
+    return () => clearInterval(poll);
   }, [fetchNotifications]);
 
-  // Begitu backend mendeteksi mesin berisiko, langsung tarik notifikasi terbaru
-  // (tanpa menunggu siklus polling 30 detik) supaya toast muncul seketika.
+  // Notif predictive (ML) & verifikasi WO: real-time lewat WebSocket, tanpa
+  // menunggu siklus polling. Juga refetch saat socket reconnect setelah
+  // sempat putus — jaring pengaman untuk event yang mungkin terlewat selama
+  // disconnect (socket.io tidak me-replay event yang di-emit saat client
+  // sedang putus).
   useEffect(() => {
     if (!socket) return;
-    const handleAlert = () => fetchNotifications(false);
-    socket.on('machine_alert', handleAlert);
-    return () => socket.off('machine_alert', handleAlert);
+    const handleUpdate = () => fetchNotifications(false);
+    socket.on('machine_alert', handleUpdate);
+    socket.on('verification_needed', handleUpdate);
+    socket.on('connect', handleUpdate);
+    return () => {
+      socket.off('machine_alert', handleUpdate);
+      socket.off('verification_needed', handleUpdate);
+      socket.off('connect', handleUpdate);
+    };
   }, [socket, fetchNotifications]);
 
   // Tutup dropdown saat klik di luar

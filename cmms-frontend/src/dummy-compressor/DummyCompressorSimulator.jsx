@@ -12,8 +12,6 @@ import {
 import { DUMMY_COMPRESSOR } from './compressorSensorGenerator.js';
 import { useSocket } from '../context/useSocket.js';
 
-const POLL_INTERVAL_MS = 15000;
-
 export default function DummyCompressorSimulator() {
   const navigate = useNavigate();
   const [asset, setAsset]           = useState(null);
@@ -34,12 +32,12 @@ export default function DummyCompressorSimulator() {
     }
   }, []);
 
-  // Pastikan aset dummy ada, lalu mulai polling prediksi kesehatan.
-  // Data sensornya sendiri sekarang dikirim dari luar aplikasi (lihat
+  // Pastikan aset dummy ada, lalu ambil prediksi kesehatan sekali. Data
+  // sensornya sendiri sekarang dikirim dari luar aplikasi (lihat
   // Simulasi/Version 2/simulasi-input data), bukan lewat front-end ini.
+  // Update selanjutnya murni didorong oleh WebSocket (lihat efek di bawah).
   useEffect(() => {
     isMountedRef.current = true;
-    let intervalId;
 
     const ensureAsset = async () => {
       try {
@@ -51,28 +49,35 @@ export default function DummyCompressorSimulator() {
         setAsset(current);
         setStatus('ready');
         fetchPrediction(current.machine_id);
-        intervalId = setInterval(() => fetchPrediction(current.machine_id), POLL_INTERVAL_MS);
       } catch {
         if (isMountedRef.current) setStatus('error');
       }
     };
 
     ensureAsset();
-    return () => { isMountedRef.current = false; if (intervalId) clearInterval(intervalId); };
+    return () => { isMountedRef.current = false; };
   }, [fetchPrediction]);
 
-  // Refresh instan begitu ada data sensor baru untuk mesin dummy ini,
-  // tanpa menunggu siklus polling 15 detik.
+  // Refresh instan begitu ada data sensor baru untuk mesin dummy ini. Juga
+  // refresh saat socket reconnect setelah sempat putus — jaring pengaman
+  // untuk update yang mungkin terlewat selama disconnect (socket.io tidak
+  // me-replay event yang di-emit saat client sedang putus). Karena efek ini
+  // baru terpasang setelah `asset` siap (setelah round-trip HTTP), koneksi
+  // awal socket biasanya sudah terjadi lebih dulu, jadi 'connect' di sini
+  // pada praktiknya hanya menangkap reconnect sungguhan.
   useEffect(() => {
     if (!socket || !asset) return;
     const handleUpdate = (payload) => {
       if (payload?.machine_id === asset.machine_id) fetchPrediction(asset.machine_id);
     };
+    const handleReconnect = () => fetchPrediction(asset.machine_id);
     socket.on('sensor_data_update', handleUpdate);
     socket.on('machine_alert', handleUpdate);
+    socket.on('connect', handleReconnect);
     return () => {
       socket.off('sensor_data_update', handleUpdate);
       socket.off('machine_alert', handleUpdate);
+      socket.off('connect', handleReconnect);
     };
   }, [socket, asset, fetchPrediction]);
 
