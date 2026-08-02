@@ -43,6 +43,11 @@ NUMERIC_FIELDS = [
     "haccx",
     "haccy",
     "haccz",
+    "active_power_w",
+    "current_a",
+    "energy_kwh",
+    "temp_c",
+    "voltage_v",
 ]
 
 
@@ -59,10 +64,11 @@ def _sensor_to_payload(sensor_data):
     return payload
 
 
-def _get_latest_valid_sensor(asset):
+def _get_latest_valid_sensor(asset, feature_columns=None):
     """Cari sensor data terbaru yang memiliki semua feature lengkap (tidak None)."""
+    cols = feature_columns if feature_columns is not None else predictor.feature_columns
     for sensor in SensorData.objects(asset=asset).order_by("-timestamp").limit(50):
-        if all(getattr(sensor, col, None) is not None for col in predictor.feature_columns):
+        if all(getattr(sensor, col, None) is not None for col in cols):
             return sensor
     return None
 
@@ -122,7 +128,7 @@ def predict_maintenance(machine_id):
             f"Mesin '{asset.machine_id}' belum memiliki model ML yang terdaftar.", 404
         )
 
-    latest_sensor = _get_latest_valid_sensor(asset)
+    latest_sensor = _get_latest_valid_sensor(asset, asset_predictor.feature_columns)
     if not latest_sensor:
         return _error_response("No complete sensor data available for this asset", 404)
 
@@ -298,20 +304,24 @@ def add_sensor_data():
     if raw_readings:
         sensor_data.raw_readings = raw_readings
 
+    # Pilih predictor sesuai machine_id asset (bukan selalu compressor) —
+    # None kalau mesin ini belum punya model ML terdaftar (mis. forging).
     prediction = None
-    try:
-        payload = {field: data.get(field) for field in predictor.feature_columns}
-        result = predictor.predict(payload)
-        if result["ok"]:
-            sensor_data.health_score = result["health_score"]
-            sensor_data.predicted_failure_days = result["predicted_days"]
-            sensor_data.failure_probability = result["failure_probability"]
-            prediction = result
-    except Exception as exc:
-        prediction = {
-            "ok": False,
-            "warning": f"Sensor data saved, but ML prediction failed: {exc}",
-        }
+    asset_predictor = get_predictor(asset.machine_id)
+    if asset_predictor:
+        try:
+            payload = {field: data.get(field) for field in asset_predictor.feature_columns}
+            result = asset_predictor.predict(payload)
+            if result["ok"]:
+                sensor_data.health_score = result["health_score"]
+                sensor_data.predicted_failure_days = result["predicted_days"]
+                sensor_data.failure_probability = result["failure_probability"]
+                prediction = result
+        except Exception as exc:
+            prediction = {
+                "ok": False,
+                "warning": f"Sensor data saved, but ML prediction failed: {exc}",
+            }
 
     sensor_data.save()
 

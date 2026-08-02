@@ -234,6 +234,13 @@ class SensorData(db.Document):
     haccy = db.FloatField()
     haccz = db.FloatField()
 
+    # Fitur sensor khusus model Induksi (status papan kontrol)
+    active_power_w = db.FloatField()
+    current_a = db.FloatField()
+    energy_kwh = db.FloatField()
+    temp_c = db.FloatField()
+    voltage_v = db.FloatField()
+
     # Tampung sensor mesin lain yang belum punya field resmi (mis. vx/vy/vz, dx/dy/dz, fx/fy/fz)
     raw_readings = db.DictField()
 
@@ -285,6 +292,11 @@ class SensorData(db.Document):
             "haccx": self.haccx,
             "haccy": self.haccy,
             "haccz": self.haccz,
+            "active_power_w": self.active_power_w,
+            "current_a": self.current_a,
+            "energy_kwh": self.energy_kwh,
+            "temp_c": self.temp_c,
+            "voltage_v": self.voltage_v,
             "raw_readings": self.raw_readings,
             "health_score": self.health_score,
             "predicted_failure_days": self.predicted_failure_days,
