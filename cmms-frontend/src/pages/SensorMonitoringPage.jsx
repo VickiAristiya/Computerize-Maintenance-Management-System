@@ -58,7 +58,7 @@ const HEALTH_COLORS = {
 // Jaring pengaman sementara selagi push WebSocket di produksi belum stabil
 // (lih. perbaikan Nginx/Gunicorn worker) — bisa dihapus lagi setelah
 // dikonfirmasi event sensor_data_update sampai konsisten ke client.
-const SENSOR_POLL_MS = 5000;
+const SENSOR_POLL_MS = 1000;
 
 // Palet & fallback untuk field sensor yang belum terdaftar di FIELD_META
 // (mis. sensor dari mesin baru: vx, dy, fz, dll.)
