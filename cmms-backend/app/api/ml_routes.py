@@ -248,8 +248,13 @@ def get_sensor_history(machine_id):
     if not asset:
         return _error_response("Asset not found", 404)
 
-    limit = min(int(request.args.get("limit", 50)), 200)
-    records = SensorData.objects(asset=asset).order_by("-timestamp").limit(limit)
+    raw_limit = request.args.get("limit", "50")
+    query = SensorData.objects(asset=asset).order_by("-timestamp")
+    if raw_limit == "all":
+        # Dipakai tombol "Export Semua" — tanpa limit, ambil seluruh riwayat asset ini.
+        records = query
+    else:
+        records = query.limit(min(int(raw_limit), 200))
 
     history = []
     available_fields = set()

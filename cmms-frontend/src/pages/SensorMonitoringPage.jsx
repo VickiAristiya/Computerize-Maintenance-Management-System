@@ -345,6 +345,7 @@ export default function SensorMonitoringPage() {
     const [limit, setLimit]       = useState(50);
     const [view, setView]         = useState('chart'); // chart | table
     const [refreshing, setRefreshing] = useState(false);
+    const [exporting, setExporting]   = useState(false);
     const { socket } = useSocket();
 
     const fetchData = useCallback(async (showRefresh = false) => {
@@ -392,11 +393,22 @@ export default function SensorMonitoringPage() {
 
     const { asset_name, history, available_fields, total } = data;
 
-    const handleExportCsv = () => {
-        const csv = buildSensorCsv(history, available_fields, asset_name);
-        const safeName = asset_name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
-        const today = new Date().toISOString().slice(0, 10);
-        downloadCsv(`sensor-data-${safeName}-${today}.csv`, csv);
+    // Ambil SELURUH riwayat sensor asset ini (bukan cuma yang sedang tampil di
+    // layar, yang dibatasi dropdown limit 20/50/100/200) lalu export ke CSV.
+    const handleExportCsv = async () => {
+        setExporting(true);
+        try {
+            const res = await api.get(`/ml/sensor-history/${assetId}?limit=all`);
+            const full = res.data;
+            const csv = buildSensorCsv(full.history, full.available_fields, full.asset_name);
+            const safeName = full.asset_name.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+            const today = new Date().toISOString().slice(0, 10);
+            downloadCsv(`sensor-data-${safeName}-${today}.csv`, csv);
+        } catch (e) {
+            setError(e.response?.data?.error || 'Gagal mengekspor data sensor.');
+        } finally {
+            setExporting(false);
+        }
     };
 
     return (
@@ -445,11 +457,14 @@ export default function SensorMonitoringPage() {
 
                     <button
                         onClick={handleExportCsv}
-                        disabled={history.length === 0}
+                        disabled={history.length === 0 || exporting}
+                        title="Export seluruh riwayat sensor mesin ini, tidak terpengaruh filter jumlah data di atas"
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition"
                     >
-                        <FileDown size={14} className="text-green-600" />
-                        Export CSV
+                        {exporting
+                            ? <Loader2 size={14} className="text-green-600 animate-spin" />
+                            : <FileDown size={14} className="text-green-600" />}
+                        {exporting ? 'Mengekspor…' : 'Export Semua CSV'}
                     </button>
 
                     <button
