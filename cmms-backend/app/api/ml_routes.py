@@ -50,6 +50,25 @@ NUMERIC_FIELDS = [
     "voltage_v",
 ]
 
+# Alias nama field: beberapa perangkat/simulator sensor mengirim nama field
+# yang beda dari nama kolom canonical yang dipakai schema & model ML (mis.
+# sensor Induksi mengirim "temp", padahal model dilatih dengan kolom "temp_c").
+# key = nama canonical (dipakai schema/model), value = daftar nama alternatif.
+FIELD_ALIASES = {
+    "temp_c": ["temp"],
+}
+
+
+def _apply_field_aliases(data):
+    """Isi field canonical dari alias-nya kalau field canonical belum ada/None."""
+    for canonical, aliases in FIELD_ALIASES.items():
+        if data.get(canonical) is not None:
+            continue
+        for alias in aliases:
+            if data.get(alias) is not None:
+                data[canonical] = data[alias]
+                break
+
 
 def _error_response(message, status_code=400, **extra):
     payload = {"error": message}
@@ -272,6 +291,8 @@ def add_sensor_data():
 
     if "machine_id" not in data:
         return _error_response("Missing required field: machine_id", 400)
+
+    _apply_field_aliases(data)
 
     asset = Asset.objects(machine_id=data["machine_id"]).first()
     if not asset:
