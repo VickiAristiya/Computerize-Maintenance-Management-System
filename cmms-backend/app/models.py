@@ -241,7 +241,13 @@ class SensorData(db.Document):
     temp_c = db.FloatField()
     voltage_v = db.FloatField()
 
-    # Tampung sensor mesin lain yang belum punya field resmi (mis. vx/vy/vz, dx/dy/dz, fx/fy/fz)
+    # Fitur sensor khusus model Forging (status mesin tempa)
+    tekanan_bar = db.FloatField()
+    vx = db.FloatField()
+    vy = db.FloatField()
+    vz = db.FloatField()
+
+    # Tampung sensor mesin lain yang belum punya field resmi (mis. dx/dy/dz, fx/fy/fz)
     raw_readings = db.DictField()
 
     # Status kesehatan (0-1, dihitung oleh ML). Tanpa default — None berarti
@@ -297,6 +303,10 @@ class SensorData(db.Document):
             "energy_kwh": self.energy_kwh,
             "temp_c": self.temp_c,
             "voltage_v": self.voltage_v,
+            "tekanan_bar": self.tekanan_bar,
+            "vx": self.vx,
+            "vy": self.vy,
+            "vz": self.vz,
             "raw_readings": self.raw_readings,
             "health_score": self.health_score,
             "predicted_failure_days": self.predicted_failure_days,

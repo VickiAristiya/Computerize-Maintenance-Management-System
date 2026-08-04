@@ -47,6 +47,17 @@ const FIELD_META = {
     water_outlet_temp:   { label: 'Suhu Keluar Air',      unit: '°C',     color: '#F97316', icon: Thermometer },
     oilpump_power:       { label: 'Daya Pompa Oli',       unit: 'W',      color: '#84CC16', icon: Zap },
     oil_tank_temp:       { label: 'Suhu Tangki Oli',      unit: '°C',     color: '#EAB308', icon: Thermometer },
+    // Fitur model Induksi (IND-001)
+    active_power_w:      { label: 'Daya Aktif',           unit: 'W',      color: '#8B5CF6', icon: Zap },
+    current_a:           { label: 'Arus',                 unit: 'A',      color: '#F59E0B', icon: Zap },
+    energy_kwh:          { label: 'Energi',               unit: 'kWh',    color: '#84CC16', icon: Zap },
+    temp_c:              { label: 'Suhu',                 unit: '°C',     color: '#F97316', icon: Thermometer },
+    voltage_v:           { label: 'Tegangan',             unit: 'V',      color: '#8B5CF6', icon: Zap },
+    // Fitur model Forging (FRG-002)
+    tekanan_bar:         { label: 'Tekanan Hidrolik',     unit: 'bar',    color: '#EF4444', icon: Gauge },
+    vx:                  { label: 'Getaran Sumbu X',      unit: 'mm/s',   color: '#6366F1', icon: Activity },
+    vy:                  { label: 'Getaran Sumbu Y',      unit: 'mm/s',   color: '#818CF8', icon: Activity },
+    vz:                  { label: 'Getaran Sumbu Z',      unit: 'mm/s',   color: '#A5B4FC', icon: Activity },
 };
 
 const HEALTH_COLORS = {

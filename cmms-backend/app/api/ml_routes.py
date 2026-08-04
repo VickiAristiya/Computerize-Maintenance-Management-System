@@ -48,6 +48,10 @@ NUMERIC_FIELDS = [
     "energy_kwh",
     "temp_c",
     "voltage_v",
+    "tekanan_bar",
+    "vx",
+    "vy",
+    "vz",
 ]
 
 # Alias nama field: beberapa perangkat/simulator sensor mengirim nama field
@@ -56,17 +60,25 @@ NUMERIC_FIELDS = [
 # key = nama canonical (dipakai schema/model), value = daftar nama alternatif.
 FIELD_ALIASES = {
     "temp_c": ["temp"],
+    # Sensor Forging mengirim tekanan hidrolik sebagai "pressure"/"tekanan",
+    # sedangkan model dilatih dengan kolom "tekanan_bar" (dari CSV training).
+    "tekanan_bar": ["tekanan", "pressure"],
 }
 
 
 def _apply_field_aliases(data):
-    """Isi field canonical dari alias-nya kalau field canonical belum ada/None."""
+    """Isi field canonical dari alias-nya kalau field canonical belum ada/None.
+
+    Alias yang sudah dipakai dibuang dari payload supaya nilainya tidak
+    tersimpan dua kali (mis. "pressure" + "tekanan_bar") dan tidak muncul
+    sebagai dua kolom/grafik kembar di halaman Monitoring Sensor.
+    """
     for canonical, aliases in FIELD_ALIASES.items():
         if data.get(canonical) is not None:
             continue
         for alias in aliases:
             if data.get(alias) is not None:
-                data[canonical] = data[alias]
+                data[canonical] = data.pop(alias)
                 break
 
 

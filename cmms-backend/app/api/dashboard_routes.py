@@ -8,6 +8,9 @@ dashboard_bp = Blueprint('dashboard_bp', __name__)
 
 COMPONENT_LABELS = {
     "bearings": "Bearing",
+    # Model Induksi & Forging sama-sama memakai satu target "status"
+    # (kondisi keseluruhan mesin), bukan per-komponen seperti compressor.
+    "status": "Status Mesin",
 }
 
 PRIORITY_ORDER = {'critical': 4, 'high': 3, 'medium': 2, 'low': 1, 'very_low': 0}
