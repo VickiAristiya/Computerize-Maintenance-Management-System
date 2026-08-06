@@ -10,6 +10,7 @@ Cara menambah mesin baru:
 from app.predictors.compressor import CompressorPredictor
 from app.predictors.induksi import InduksiPredictor
 from app.predictors.forging import ForgingPredictor
+from app.predictors.bor import BorPredictor
 
 # ── Tambahkan baris baru di sini saat ada model mesin baru ──────────────────
 # from app.predictors.cnc_milling import CNCMillingPredictor
@@ -20,6 +21,7 @@ REGISTRY: dict[str, type] = {
     "CMP-DUMMY-001": CompressorPredictor,
     "IND-001": InduksiPredictor,
     "FRG-002": ForgingPredictor,
+    "DRL-001": BorPredictor,
 
     # Contoh mesin berikutnya (uncomment + isi setelah model siap):
     # "CNC-B2":    CNCMillingPredictor,

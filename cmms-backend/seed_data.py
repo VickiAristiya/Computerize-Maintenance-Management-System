@@ -33,7 +33,7 @@ def create_dummy_data():
         technician.set_password('password123')
         technician.save()
 
-        # Inventory components — disesuaikan dengan 5 mesin: Induksi, Forging, Robot, Motor AC, Compressor
+        # Inventory components — disesuaikan dengan 6 mesin: Induksi, Forging, Robot, Motor AC, Compressor, Bor
         components_data = [
             {'name': 'Kumparan Induksi',        'part_number': 'IC-1001', 'stock_quantity': 2,  'location': 'Gudang Utama', 'low_stock_threshold': 3},
             {'name': 'Capacitor Bank',           'part_number': 'CB-2050', 'stock_quantity': 4,  'location': 'Gudang Utama'},
@@ -49,6 +49,9 @@ def create_dummy_data():
             {'name': 'Fan Blade Pendingin',      'part_number': 'CFB-1300', 'stock_quantity': 12, 'location': 'Gudang Cabang'},
             {'name': 'Air Filter Compressor',    'part_number': 'CAF-1400', 'stock_quantity': 6, 'location': 'Gudang Utama'},
             {'name': 'Bearing Set Compressor',   'part_number': 'CBS-1500', 'stock_quantity': 5, 'location': 'Gudang Utama'},
+            {'name': 'Spindle Mesin Bor',        'part_number': 'DSP-1600', 'stock_quantity': 3, 'location': 'Gudang Utama'},
+            {'name': 'Bearing Spindle Bor',      'part_number': 'DBS-1700', 'stock_quantity': 6, 'location': 'Gudang Utama'},
+            {'name': 'Mata Bor HSS',             'part_number': 'DRB-1800', 'stock_quantity': 15, 'location': 'Gudang Cabang', 'low_stock_threshold': 10},
         ]
         components = []
         for item in components_data:
@@ -63,7 +66,8 @@ def create_dummy_data():
         # Index komponen untuk kemudahan referensi
         (kumparan_induksi, capacitor_bank, pompa_air, die_set, hydraulic_cylinder,
          guide_bushing, servo_motor, encoder_module, robot_gripper,
-         winding_motor, bearing_motor, fan_blade, air_filter_comp, bearing_comp) = components
+         winding_motor, bearing_motor, fan_blade, air_filter_comp, bearing_comp,
+         spindle_bor, bearing_spindle_bor, mata_bor) = components
 
         # Asset templates
         induksi_template = safe_save(AssetTemplate, {
@@ -86,7 +90,11 @@ def create_dummy_data():
             'components': [air_filter_comp, bearing_comp, pompa_air]
         }, name='Compressor')
 
-        # Assets — 4 mesin utama + 1 compressor
+        bor_template = safe_save(AssetTemplate, {
+            'components': [spindle_bor, bearing_spindle_bor, mata_bor]
+        }, name='Mesin Bor')
+
+        # Assets — 5 mesin utama + 1 compressor
         induksi_asset = safe_save(Asset, {
             'machine_id': 'IND-001',
             'location': 'Line Peleburan A',
@@ -114,6 +122,14 @@ def create_dummy_data():
             'status': 'running',
             'components': [winding_motor, bearing_motor, fan_blade]
         }, name='Motor AC Blower M4')
+
+        # machine_id DRL-001 dipakai oleh ml_registry.py (BorPredictor) — jangan diubah
+        bor_asset = safe_save(Asset, {
+            'machine_id': 'DRL-001',
+            'location': 'Line Permesinan F',
+            'status': 'running',
+            'components': [spindle_bor, bearing_spindle_bor, mata_bor]
+        }, name='Mesin Bor D1')
 
         # machine_id CMP-DUMMY-001 dipakai oleh ml_registry.py (CompressorPredictor) — jangan diubah
         compressor_asset = safe_save(Asset, {
