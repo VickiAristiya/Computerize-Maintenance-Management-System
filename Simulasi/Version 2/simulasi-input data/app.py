@@ -16,7 +16,7 @@ Lalu buka http://127.0.0.1:5050
 """
 
 import requests
-from flask import Flask, render_template, request
+from flask import Flask, jsonify, render_template, request
 
 from config import CMMS_API_BASE, MACHINE_ID, DUMMY_ASSET, SENSOR_FIELDS, PRESETS
 
@@ -96,6 +96,69 @@ def index():
         error=error,
         api_base=CMMS_API_BASE,
     )
+
+
+# ── Mode demo: slider health score ─────────────────────────────────────────
+#
+# Halaman terpisah berisi satu slider untuk menyetel health score mesin secara
+# langsung, seperti mengatur volume. Dipakai saat presentasi supaya penurunan
+# health score dan munculnya notifikasi bisa diperagakan seketika, tanpa perlu
+# mengirim belasan pembacaan sensor dan menunggu smoothing di backend.
+#
+# Sakelar on/off-nya ada DI SINI (halaman simulasi), bukan di web CMMS. Selama
+# slider tidak dinyalakan, backend CMMS tidak menerima override apa pun.
+#
+# Permintaan dari browser dikirim ke Flask ini dulu, baru diteruskan ke CMMS —
+# supaya tidak terganjal CORS saat backend CMMS berjalan di domain berbeda.
+
+
+def _forward(method, path, **kwargs):
+    """Teruskan satu request ke backend CMMS. Return (body_dict, status_code)."""
+    try:
+        res = requests.request(method, f"{CMMS_API_BASE}{path}", timeout=10, **kwargs)
+    except requests.exceptions.ConnectionError:
+        return {"error": "Tidak dapat terhubung ke backend CMMS."}, 502
+    except requests.exceptions.Timeout:
+        return {"error": "Request timeout. Server tidak merespons dalam 10 detik."}, 504
+    except requests.exceptions.RequestException as exc:
+        return {"error": str(exc)}, 502
+
+    try:
+        return res.json(), res.status_code
+    except ValueError:
+        return {"error": f"HTTP {res.status_code}"}, res.status_code
+
+
+@app.route("/health-demo")
+def health_demo():
+    return render_template(
+        "health_demo.html",
+        machine_id=MACHINE_ID,
+        machine_name=DUMMY_ASSET.get("name", MACHINE_ID),
+        api_base=CMMS_API_BASE,
+    )
+
+
+@app.route("/health-override", methods=["GET", "POST", "DELETE"])
+def health_override():
+    machine_id = (
+        request.args.get("machine_id")
+        or (request.get_json(silent=True) or {}).get("machine_id")
+        or MACHINE_ID
+    )
+
+    if request.method == "GET":
+        body, code = _forward("GET", f"/demo/health-override/{machine_id}")
+    elif request.method == "DELETE":
+        body, code = _forward("DELETE", f"/demo/health-override/{machine_id}")
+    else:
+        payload = request.get_json(silent=True) or {}
+        body, code = _forward("POST", "/demo/health-override", json={
+            "machine_id": machine_id,
+            "health_score": payload.get("health_score"),
+        })
+
+    return jsonify(body), code
 
 
 if __name__ == "__main__":

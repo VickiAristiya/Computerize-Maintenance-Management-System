@@ -95,4 +95,10 @@ def create_app():
     from .api.ml_routes import ml_bp
     app.register_blueprint(ml_bp, url_prefix='/api/ml')
 
+    # Mode demo (override health score dari slider web simulasi). Sakelar
+    # on/off-nya ada di web simulasi; set DEMO_MODE_ENABLED=0 untuk mematikan
+    # dari sisi server. Lih. app/api/demo_routes.py.
+    from .api.demo_routes import demo_bp
+    app.register_blueprint(demo_bp, url_prefix='/api/demo')
+
     return app

@@ -346,6 +346,15 @@ class AssetHealthStatus(db.Document):
     # beberapa pembacaan terakhir]}. Internal, tidak dikirim ke front-end.
     raw_history = db.DictField()
 
+    # --- Mode demo (lih. app/api/demo_routes.py) --------------------------
+    # Dipakai HANYA saat health score di-override manual lewat slider simulasi.
+    # `overridden` menandai snapshot ini bukan hasil model, dan `pre_override`
+    # menyimpan isi snapshot sebelum di-override supaya bisa dikembalikan utuh
+    # saat mode demo dimatikan. Di operasi normal keduanya tidak pernah terisi.
+    overridden = db.BooleanField(default=False)
+    pre_override = db.DictField()
+    # ----------------------------------------------------------------------
+
     computed_at = db.DateTimeField(default=datetime.datetime.utcnow)
 
     meta = {'indexes': ['asset']}

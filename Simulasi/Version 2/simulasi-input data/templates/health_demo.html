@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mode Demo — Slider Health Score</title>
+<style>
+  :root {
+    --blue: #2563eb; --blue-dark: #1d4ed8;
+    --slate-50: #f8fafc; --slate-100: #f1f5f9; --slate-200: #e2e8f0;
+    --slate-400: #94a3b8; --slate-500: #64748b; --slate-700: #334155; --slate-800: #1e293b;
+    --green: #16a34a; --red: #dc2626; --orange: #ea580c; --yellow: #ca8a04;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--slate-50); color: var(--slate-800);
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+  header.page { margin-bottom: 24px; }
+  header.page h1 { font-size: 20px; margin: 0 0 4px; }
+  header.page p { margin: 0; color: var(--slate-500); font-size: 13px; line-height: 1.6; }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 999px; background: #fef3c7; color: #92400e; margin-bottom: 10px;
+  }
+  .card {
+    background: #fff; border: 1px solid var(--slate-200); border-radius: 12px;
+    padding: 20px; margin-bottom: 20px;
+  }
+  .card h2 { font-size: 14px; margin: 0 0 14px; color: var(--slate-700); }
+  .notice {
+    border: 1px solid #fde68a; background: #fffbeb; color: #92400e;
+    padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.6; margin-bottom: 20px;
+  }
+  .error {
+    border: 1px solid #fecaca; background: #fef2f2; color: #b91c1c;
+    padding: 12px 14px; border-radius: 10px; font-size: 13px; margin-bottom: 16px;
+  }
+
+  /* Sakelar on/off */
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .switch-label { font-size: 14px; font-weight: 700; }
+  .switch-label small { display: block; font-weight: 400; color: var(--slate-500); font-size: 12px; margin-top: 2px; }
+  .switch { position: relative; width: 52px; height: 30px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .track {
+    position: absolute; inset: 0; background: var(--slate-200); border-radius: 999px;
+    cursor: pointer; transition: background .18s;
+  }
+  .track::before {
+    content: ""; position: absolute; width: 24px; height: 24px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: transform .18s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+  }
+  .switch input:checked + .track { background: var(--blue); }
+  .switch input:checked + .track::before { transform: translateX(22px); }
+
+  /* Slider */
+  .slider-area { margin-top: 22px; transition: opacity .18s; }
+  .slider-area[data-disabled="true"] { opacity: .4; pointer-events: none; }
+  .readout { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  .readout .value { font-size: 44px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+  .risk {
+    font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .risk[data-level="very_low"] { background: #dcfce7; color: #15803d; }
+  .risk[data-level="low"]      { background: #d9f99d; color: #4d7c0f; }
+  .risk[data-level="medium"]   { background: #fef3c7; color: #a16207; }
+  .risk[data-level="high"]     { background: #ffedd5; color: #c2410c; }
+  .risk[data-level="critical"] { background: #fee2e2; color: #b91c1c; }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 10px;
+    border-radius: 999px; outline: none; margin: 18px 0 6px;
+    background: linear-gradient(90deg, var(--red) 0%, var(--orange) 30%, var(--yellow) 55%, var(--green) 100%);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 26px; height: 26px;
+    border-radius: 50%; background: #fff; border: 3px solid var(--slate-700);
+    cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 26px; height: 26px; border-radius: 50%; background: #fff;
+    border: 3px solid var(--slate-700); cursor: pointer;
+  }
+  .scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--slate-400); }
+
+  .threshold {
+    margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--slate-100);
+    font-size: 12px; color: var(--slate-500); line-height: 1.7;
+  }
+  .threshold b { color: var(--slate-700); }
+  .status { margin-top: 14px; font-size: 13px; min-height: 20px; }
+  .status.ok { color: var(--green); font-weight: 600; }
+  .status.busy { color: var(--slate-400); }
+  .status.err { color: var(--red); font-weight: 600; }
+  .footnote { font-size: 12px; color: var(--slate-400); margin-top: 6px; }
+  code { background: var(--slate-100); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  a.back { font-size: 13px; color: var(--blue); text-decoration: none; font-weight: 600; }
+  a.back:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <span class="badge">MODE DEMO</span>
+    <h1>Slider Health Score — {{ machine_name }}</h1>
+    <p>
+      Geser ke kanan untuk menaikkan health score, ke kiri untuk menurunkannya.
+      Perubahan langsung terkirim ke CMMS di <code>{{ api_base }}</code>
+      dan tampil di dashboard tanpa perlu refresh.
+    </p>
+  </header>
+
+  <div class="notice">
+    <b>Angka dari slider ini bukan hasil model ML.</b> Ini jalur peragaan tampilan,
+    dipakai supaya penurunan health score dan munculnya notifikasi bisa
+    diperagakan seketika — tanpa menunggu smoothing backend yang membatasi
+    perubahan health score per pembacaan sensor. Untuk memperagakan jalur ML yang
+    sebenarnya, pakai <a class="back" href="/">form input sensor</a>.
+    Mematikan sakelar di bawah akan mengembalikan health score ke kondisi semula.
+  </div>
+
+  <div id="error" class="error" style="display:none"></div>
+
+  <div class="card">
+    <div class="switch-row">
+      <div class="switch-label">
+        Mode demo health score
+        <small>Selama mati, CMMS tidak menerima override apa pun dari halaman ini.</small>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="toggle">
+        <span class="track"></span>
+      </label>
+    </div>
+
+    <div class="slider-area" id="sliderArea" data-disabled="true">
+      <div class="readout">
+        <span class="value" id="value">100%</span>
+        <span class="risk" id="risk" data-level="very_low">very low</span>
+      </div>
+
+      <input type="range" id="slider" min="0" max="100" step="1" value="100">
+      <div class="scale">
+        <span>0% — kritis</span>
+        <span>50%</span>
+        <span>100% — sehat</span>
+      </div>
+
+      <div class="threshold">
+        Ambang yang dipakai backend:
+        <b>&gt; 90%</b> very low ·
+        <b>70–90%</b> low ·
+        <b>50–70%</b> medium ·
+        <b>20–50%</b> high ·
+        <b>&le; 20%</b> critical.
+        Notifikasi <i>predictive maintenance</i> di dashboard mulai muncul saat health score
+        <b>di bawah 70%</b>, dan alert real-time saat risiko <b>high</b> atau <b>critical</b>.
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+  </div>
+
+  <p class="footnote">
+    Mesin: <code>{{ machine_id }}</code> — ganti lewat env var
+    <code>MACHINE_PROFILE</code> saat menjalankan simulasi ini.
+  </p>
+  <a class="back" href="/">&larr; Kembali ke form input sensor</a>
+
+</div>
+
+<script>
+  const MACHINE_ID = {{ machine_id | tojson }};
+
+  const toggle     = document.getElementById("toggle");
+  const slider     = document.getElementById("slider");
+  const sliderArea = document.getElementById("sliderArea");
+  const valueEl    = document.getElementById("value");
+  const riskEl     = document.getElementById("risk");
+  const statusEl   = document.getElementById("status");
+  const errorEl    = document.getElementById("error");
+
+  // Ambang risiko — disamakan dengan _build_risk() di backend
+  // (fault_probability = 1 - health_score).
+  function riskOf(health) {
+    const fault = 1 - health;
+    if (fault >= 0.8) return "critical";
+    if (fault >= 0.5) return "high";
+    if (fault >= 0.3) return "medium";
+    if (fault >= 0.1) return "low";
+    return "very_low";
+  }
+
+  function paint(healthPercent, level) {
+    valueEl.textContent = healthPercent + "%";
+    const lv = level || riskOf(healthPercent / 100);
+    riskEl.dataset.level = lv;
+    riskEl.textContent = lv.replace("_", " ");
+  }
+
+  function showError(message) {
+    errorEl.textContent = message;
+    errorEl.style.display = message ? "block" : "none";
+  }
+
+  function setStatus(text, kind) {
+    statusEl.textContent = text;
+    statusEl.className = "status" + (kind ? " " + kind : "");
+  }
+
+  async function call(method, body) {
+    const options = { method, headers: { "Content-Type": "application/json" } };
+    if (body) options.body = JSON.stringify({ machine_id: MACHINE_ID, ...body });
+    const url = "/health-override" + (method === "GET" || method === "DELETE"
+      ? "?machine_id=" + encodeURIComponent(MACHINE_ID) : "");
+    const res = await fetch(url, options);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+    return data;
+  }
+
+  // Kirim nilai slider, tapi jangan membanjiri server saat digeser:
+  // satu request berjalan pada satu waktu, nilai terakhir menyusul setelahnya.
+  let inFlight = false;
+  let pending  = null;
+
+  async function push(healthPercent) {
+    if (inFlight) { pending = healthPercent; return; }
+    inFlight = true;
+    setStatus("Mengirim…", "busy");
+    try {
+      const data = await call("POST", { health_score: healthPercent / 100 });
+      showError("");
+      paint(Math.round(data.health_score * 100), data.risk_level);
+      setStatus(
+        data.notification_active
+          ? "Terkirim — notifikasi maintenance aktif di dashboard."
+          : "Terkirim — kondisi normal, tidak ada notifikasi.",
+        "ok"
+      );
+    } catch (err) {
+      setStatus("", "");
+      showError("Gagal mengirim: " + err.message);
+    } finally {
+      inFlight = false;
+      if (pending !== null) { const next = pending; pending = null; push(next); }
+    }
+  }
+
+  slider.addEventListener("input", () => paint(Number(slider.value)));
+  slider.addEventListener("change", () => push(Number(slider.value)));
+  // Sentuh/drag di desktop: kirim juga saat pointer dilepas
+  slider.addEventListener("pointerup", () => push(Number(slider.value)));
+
+  toggle.addEventListener("change", async () => {
+    sliderArea.dataset.disabled = toggle.checked ? "false" : "true";
+    if (toggle.checked) {
+      push(Number(slider.value));
+    } else {
+      setStatus("Mengembalikan…", "busy");
+      try {
+        const data = await call("DELETE");
+        showError("");
+        setStatus("Mode demo mati — health score dikembalikan ke kondisi semula.", "ok");
+        if (data.health_score !== null && data.health_score !== undefined) {
+          paint(Math.round(data.health_score * 100), data.risk_level);
+        }
+      } catch (err) {
+        setStatus("", "");
+        showError("Gagal mengembalikan: " + err.message);
+      }
+    }
+  });
+
+  // Saat halaman dibuka: ikuti kondisi yang sedang berlaku di CMMS
+  (async () => {
+    try {
+      const data = await call("GET");
+      if (!data.demo_mode_enabled) {
+        showError("Mode demo dimatikan di server (DEMO_MODE_ENABLED=0). Slider tidak akan berpengaruh.");
+        toggle.disabled = true;
+        return;
+      }
+      if (data.overridden && data.health_score !== null) {
+        const percent = Math.round(data.health_score * 100);
+        toggle.checked = true;
+        sliderArea.dataset.disabled = "false";
+        slider.value = percent;
+        paint(percent, data.risk_level);
+        setStatus("Override sedang aktif di CMMS.", "ok");
+      }
+    } catch (err) {
+      showError("Tidak dapat membaca kondisi awal dari CMMS: " + err.message);
+    }
+  })();
+</script>
+</body>
+</html>
