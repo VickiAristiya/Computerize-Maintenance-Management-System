@@ -113,10 +113,17 @@ def get_machine_monitoring():
     """
     Endpoint untuk monitoring mesin dengan status dan statistik.
     Status yang didukung: running, idle, breakdown, off, maintenance, warning
+
+    'down' adalah alias lama untuk 'breakdown' — keduanya dihitung sebagai satu
+    status supaya halaman Machine Monitoring tidak menampilkan dua kartu "Rusak"
+    dengan jumlah yang terpecah.
     """
     try:
         all_assets = Asset.objects()
-        
+
+        # Alias status lama -> status kanonik
+        STATUS_ALIASES = {'down': 'breakdown'}
+
         # Hitung statistik berdasarkan status
         status_stats = {
             'running': 0,
@@ -125,17 +132,17 @@ def get_machine_monitoring():
             'off': 0,
             'maintenance': 0,
             'warning': 0,
-            'down': 0,
         }
-        
+
         assets_with_details = []
         for asset in all_assets:
             status = asset.status if asset.status else 'running'
-            
+            status = STATUS_ALIASES.get(status, status)
+
             # Update statistik
             if status in status_stats:
                 status_stats[status] += 1
-            
+
             # Hitung WO pending untuk aset ini
             pending_wo_count = 0
             try:

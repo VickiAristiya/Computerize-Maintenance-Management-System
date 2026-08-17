@@ -76,6 +76,19 @@ const STATUS_CONFIG = {
     }
 };
 
+// Alias status lama -> status kanonik. STATUS_CONFIG tetap memuat 'down' supaya
+// aset lama yang masih berstatus itu tetap dapat label & warna yang benar, tapi
+// 'down' tidak boleh muncul sebagai pilihan/kartu tersendiri — kalau ikut
+// ditampilkan, halaman ini menampilkan dua kartu "Rusak" dengan jumlah terpecah.
+const STATUS_ALIASES = { down: 'breakdown' };
+
+const canonicalStatus = (status) => STATUS_ALIASES[status] || status;
+
+// Status yang ditampilkan sebagai kartu ringkasan & pilihan filter
+const DISPLAY_STATUSES = Object.keys(STATUS_CONFIG).filter(
+    (status) => !(status in STATUS_ALIASES)
+);
+
 // --- STAT CARD ---
 const StatCard = ({ status, count, color, icon: Icon }) => (
     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition">
@@ -105,7 +118,10 @@ const MachineCard = ({ machine, onStatusChange, isUpdating, onSensorClick }) => 
     const Icon = config.icon;
 
     const [isEditing, setIsEditing] = useState(false);
-    const [newStatus, setNewStatus] = useState(machine.status);
+    // Pakai status kanonik: aset lama berstatus 'down' tidak punya opsi sendiri
+    // di dropdown, jadi tanpa ini <select> akan jatuh ke opsi pertama ('Berjalan')
+    // dan bisa mengubah status mesin tanpa disengaja.
+    const [newStatus, setNewStatus] = useState(canonicalStatus(machine.status));
 
     const handleStatusSubmit = async () => {
         await onStatusChange(machine.id, newStatus);
@@ -204,7 +220,10 @@ const MachineRow = ({ machine, onStatusChange, isUpdating, onSensorClick }) => {
     const Icon = config.icon;
     
     const [isEditing, setIsEditing] = useState(false);
-    const [newStatus, setNewStatus] = useState(machine.status);
+    // Pakai status kanonik: aset lama berstatus 'down' tidak punya opsi sendiri
+    // di dropdown, jadi tanpa ini <select> akan jatuh ke opsi pertama ('Berjalan')
+    // dan bisa mengubah status mesin tanpa disengaja.
+    const [newStatus, setNewStatus] = useState(canonicalStatus(machine.status));
     
     const handleStatusSubmit = async () => {
         await onStatusChange(machine.id, newStatus);
@@ -259,8 +278,8 @@ const MachineRow = ({ machine, onStatusChange, isUpdating, onSensorClick }) => {
                                 onChange={(e) => setNewStatus(e.target.value)}
                                 className="px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                             >
-                                {Object.entries(STATUS_CONFIG).filter(([key]) => key !== 'down').map(([key, val]) => (
-                                    <option key={key} value={key}>{val.label}</option>
+                                {DISPLAY_STATUSES.map((key) => (
+                                    <option key={key} value={key}>{STATUS_CONFIG[key].label}</option>
                                 ))}
                             </select>
                             <button
@@ -356,9 +375,18 @@ export default function MachineMonitoringPage() {
         setIsUpdating(null);
     };
 
-    const filteredMachines = selectedStatusFilter === 'all' 
-        ? machines 
-        : machines.filter(m => m.status === selectedStatusFilter);
+    // Jumlah per status, dengan alias lama digabung ke status kanoniknya.
+    // Backend sudah menggabungkan 'down' ke 'breakdown', tapi penggabungan di
+    // sini membuat halaman tetap benar kalau menerima respons versi lama.
+    const statusCounts = Object.entries(statusSummary).reduce((acc, [status, count]) => {
+        const key = canonicalStatus(status);
+        acc[key] = (acc[key] || 0) + count;
+        return acc;
+    }, {});
+
+    const filteredMachines = selectedStatusFilter === 'all'
+        ? machines
+        : machines.filter(m => canonicalStatus(m.status) === selectedStatusFilter);
 
     if (error) return <ErrorState message={error} />;
 
@@ -380,13 +408,13 @@ export default function MachineMonitoringPage() {
 
             {/* Status Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-                {Object.entries(STATUS_CONFIG).map(([status, config]) => {
-                    const Icon = config.icon;
+                {DISPLAY_STATUSES.map((status) => {
+                    const Icon = STATUS_CONFIG[status].icon;
                     return (
-                        <StatCard 
+                        <StatCard
                             key={status}
-                            status={status} 
-                            count={statusSummary[status] || 0} 
+                            status={status}
+                            count={statusCounts[status] || 0}
                             icon={Icon}
                         />
                     );
@@ -405,9 +433,9 @@ export default function MachineMonitoringPage() {
                             className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
                             <option value="all">Semua Mesin ({machines.length})</option>
-                            {Object.entries(STATUS_CONFIG).map(([key, val]) => (
+                            {DISPLAY_STATUSES.map((key) => (
                                 <option key={key} value={key}>
-                                    {val.label} ({statusSummary[key] || 0})
+                                    {STATUS_CONFIG[key].label} ({statusCounts[key] || 0})
                                 </option>
                             ))}
                         </select>
