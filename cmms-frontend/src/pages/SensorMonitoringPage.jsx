@@ -58,6 +58,8 @@ const FIELD_META = {
     vx:                  { label: 'Getaran Sumbu X',      unit: 'mm/s',   color: '#6366F1', icon: Activity },
     vy:                  { label: 'Getaran Sumbu Y',      unit: 'mm/s',   color: '#818CF8', icon: Activity },
     vz:                  { label: 'Getaran Sumbu Z',      unit: 'mm/s',   color: '#A5B4FC', icon: Activity },
+    // Fitur model Bubut (BBT-001) — active_power_w, temp_c, vx/vy/vz sudah di atas
+    vrms:                { label: 'Getaran Resultan',     unit: 'mm/s',   color: '#7C3AED', icon: Activity },
 };
 
 const HEALTH_COLORS = {

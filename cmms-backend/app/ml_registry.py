@@ -1,31 +1,77 @@
 """
-Registry ML: petakan machine_id aset → predictor class-nya.
+Registry ML: petakan machine_id aset → model prediktifnya.
 
-Cara menambah mesin baru:
-  1. Latih model, simpan ke:
-       machine-learning filtered data/<nama_mesin>/models/
-  2. Buat file predictors/<nama_mesin>.py mengikuti pola predictors/compressor.py
-  3. Import class-nya di sini dan tambahkan entri ke REGISTRY.
+=== MENAMBAH MESIN BARU (jalur cepat) ======================================
+
+  1. Latih model, simpan hasilnya ke:
+       machine-learning filtered data/<folder>/models/
+         - hybrid_model_<komponen>.pkl    (scaler, svm, feature_columns, class_names)
+         - dnn_extractor_<komponen>.keras
+
+  2. Tambahkan SATU entri di dict MACHINES di bawah.
+
+  3. Verifikasi:
+       venv/Scripts/python.exe scripts/cek_mesin.py <MACHINE_ID>
+
+  Tidak perlu membuat file predictor baru, tidak perlu mengubah models.py,
+  tidak perlu mengubah front-end. Nama fitur, nama komponen, dan label kelas
+  dibaca otomatis dari bundle .pkl hasil training.
+
+  REGISTRY (class-based) di bawah hanya menyimpan 4 mesin lama yang sudah
+  terlanjur punya file predictor sendiri. Mesin baru cukup lewat MACHINES.
+===========================================================================
 """
 from app.predictors.compressor import CompressorPredictor
 from app.predictors.induksi import InduksiPredictor
 from app.predictors.forging import ForgingPredictor
 from app.predictors.bor import BorPredictor
+from app.predictors.generic import GenericHybridPredictor
 
-# ── Tambahkan baris baru di sini saat ada model mesin baru ──────────────────
-# from app.predictors.cnc_milling import CNCMillingPredictor
-# from app.predictors.conveyor   import ConveyorPredictor
 
+# ── Mesin lama: predictor punya file sendiri (jangan diubah) ────────────────
 REGISTRY: dict[str, type] = {
-    # machine_id (dari field Asset.machine_id) → predictor class
     "CMP-DUMMY-001": CompressorPredictor,
     "IND-001": InduksiPredictor,
     "FRG-002": ForgingPredictor,
     "DRL-001": BorPredictor,
+}
 
-    # Contoh mesin berikutnya (uncomment + isi setelah model siap):
-    # "CNC-B2":    CNCMillingPredictor,
-    # "CONV-C3":   ConveyorPredictor,
+
+# ── Mesin baru: cukup tambah satu entri di sini ─────────────────────────────
+#
+# Field wajib : folder, label
+# Field opsional:
+#   components      list komponen; kosongkan = deteksi otomatis dari nama file
+#   component_names {komponen: "Nama tampilan"} untuk teks rekomendasi
+#   ok_message      teks rekomendasi saat kondisi normal
+#   fault_message   teks rekomendasi saat fault (kalimat urgensi otomatis)
+#   aliases         {nama_kolom_model: [nama_yang_dikirim_sensor, ...]}
+#                   dipakai kalau simulator/perangkat mengirim nama field beda
+#
+MACHINES: dict[str, dict] = {
+    # Mesin Bubut — 6 sensor: daya aktif, suhu, getaran X/Y/Z, dan getaran
+    # resultan (vrms). Model hybrid DNN-SVM, lih.
+    # machine-learning filtered data/bubut/bubut_model.ipynb
+    "BBT-001": {
+        "folder": "bubut",
+        "label": "Mesin Bubut",
+        "component_names": {"status": "Spindle & Chuck"},
+        "ok_message": "Mesin Bubut dalam kondisi normal — lanjutkan pemantauan rutin.",
+        "fault_message": (
+            "Mesin Bubut terindikasi fault — periksa getaran spindle, "
+            "kesejajaran chuck, dan kondisi bearing headstock."
+        ),
+    },
+    #
+    # Contoh entri baru — hapus komentar dan sesuaikan saat model mesin lain siap:
+    #
+    # "CNC-001": {
+    #     "folder": "cnc",                       # machine-learning filtered data/cnc/models/
+    #     "label": "Mesin CNC",
+    #     "component_names": {"status": "Spindle & Servo"},
+    #     "fault_message": "Mesin CNC terindikasi fault — periksa spindle dan servo drive.",
+    #     "aliases": {"temp_c": ["temp", "suhu"]},
+    # },
 }
 # ────────────────────────────────────────────────────────────────────────────
 
@@ -36,9 +82,33 @@ def get_predictor(machine_id: str):
     Return None jika mesin belum memiliki model ML.
     """
     cls = REGISTRY.get(machine_id)
-    return cls() if cls else None
+    if cls:
+        return cls()
+
+    spec = MACHINES.get(machine_id)
+    if not spec:
+        return None
+
+    return GenericHybridPredictor(
+        folder=spec["folder"],
+        machine_label=spec.get("label", machine_id),
+        components=spec.get("components"),
+        component_names=spec.get("component_names"),
+        ok_message=spec.get("ok_message"),
+        fault_message=spec.get("fault_message"),
+    )
 
 
 def registered_machine_ids() -> list[str]:
     """Daftar machine_id yang sudah terdaftar di registry."""
-    return list(REGISTRY.keys())
+    return list(REGISTRY.keys()) + list(MACHINES.keys())
+
+
+def registry_field_aliases() -> dict[str, list[str]]:
+    """Gabungan alias field dari semua entri MACHINES (lih. ml_routes.FIELD_ALIASES)."""
+    merged: dict[str, list[str]] = {}
+    for spec in MACHINES.values():
+        for canonical, aliases in (spec.get("aliases") or {}).items():
+            merged.setdefault(canonical, [])
+            merged[canonical].extend(a for a in aliases if a not in merged[canonical])
+    return merged
