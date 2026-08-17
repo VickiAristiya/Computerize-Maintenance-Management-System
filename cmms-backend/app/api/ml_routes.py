@@ -2,8 +2,9 @@
 from flask import Blueprint, jsonify, request
 
 from app import socketio
+from app.health_smoothing import smooth_prediction
 from app.ml_service import CompressorPredictor, COMPONENTS
-from app.ml_registry import get_predictor
+from app.ml_registry import get_predictor, registry_field_aliases
 from app.models import Asset, SensorData, AssetHealthStatus
 
 # risk_level yang dianggap cukup penting untuk memicu alert real-time
@@ -65,6 +66,14 @@ FIELD_ALIASES = {
     "tekanan_bar": ["tekanan", "pressure"],
 }
 
+# Mesin baru mendaftarkan aliasnya lewat MACHINES di ml_registry.py, supaya
+# menambah mesin cukup menyentuh satu file.
+for _canonical, _aliases in registry_field_aliases().items():
+    FIELD_ALIASES.setdefault(_canonical, [])
+    FIELD_ALIASES[_canonical].extend(
+        a for a in _aliases if a not in FIELD_ALIASES[_canonical]
+    )
+
 
 def _apply_field_aliases(data):
     """Isi field canonical dari alias-nya kalau field canonical belum ada/None.
@@ -88,10 +97,23 @@ def _error_response(message, status_code=400, **extra):
     return jsonify(payload), status_code
 
 
+def _sensor_value(sensor_data, column):
+    """Ambil nilai satu fitur dari SensorData.
+
+    Field mesin baru belum tentu punya kolom resmi di models.py — nilainya
+    tersimpan di raw_readings. Helper ini menutup kedua kasus, sehingga model
+    mesin baru bisa dipakai tanpa menambah field di SensorData.
+    """
+    value = getattr(sensor_data, column, None)
+    if value is None:
+        value = (sensor_data.raw_readings or {}).get(column)
+    return value
+
+
 def _sensor_to_payload(sensor_data):
     payload = {}
     for column in predictor.feature_columns:
-        payload[column] = getattr(sensor_data, column, None)
+        payload[column] = _sensor_value(sensor_data, column)
     return payload
 
 
@@ -99,9 +121,54 @@ def _get_latest_valid_sensor(asset, feature_columns=None):
     """Cari sensor data terbaru yang memiliki semua feature lengkap (tidak None)."""
     cols = feature_columns if feature_columns is not None else predictor.feature_columns
     for sensor in SensorData.objects(asset=asset).order_by("-timestamp").limit(50):
-        if all(getattr(sensor, col, None) is not None for col in cols):
+        if all(_sensor_value(sensor, col) is not None for col in cols):
             return sensor
     return None
+
+
+def _apply_smoothed_snapshot(result, asset, latest_sensor):
+    """Ganti angka hasil model dengan snapshot health yang sudah dihaluskan.
+
+    Endpoint prediksi read-only (mis. /predict/<machine_id>) menghitung ulang
+    model dari satu pembacaan sensor terakhir — kalau ditampilkan apa adanya,
+    angkanya bisa berbeda jauh dari dashboard yang memakai nilai halus. Snapshot
+    AssetHealthStatus sudah berisi hasil smoothing untuk pembacaan yang sama,
+    jadi dipakai kembali di sini (tanpa mengubah state smoothing).
+    """
+    status = AssetHealthStatus.objects(asset=asset).first()
+    if not status or status.health_score is None:
+        return result
+
+    # Snapshot lebih tua dari data sensor yang dipakai di sini (mis. data lama
+    # yang belum sempat diprediksi) — biarkan hasil model apa adanya.
+    if status.computed_at and latest_sensor.timestamp and status.computed_at < latest_sensor.timestamp:
+        return result
+
+    components = status.components or {}
+    first = next(iter(components.values()), {})
+
+    result.update({
+        "raw_health_score": result.get("health_score"),
+        "raw_overall_health_score": result.get("overall_health_score"),
+        "raw_failure_probability": result.get("failure_probability"),
+        "raw_risk_level": result.get("risk_level"),
+        "raw_status": result.get("status"),
+        "health_score": status.health_score,
+        "overall_health_score": status.overall_health_score,
+        "failure_probability": status.failure_probability,
+        "predicted_days": status.predicted_days,
+        "risk_level": status.risk_level,
+        "priority": status.priority,
+        "due_date": status.due_date,
+        "recommendation": status.recommendation or result.get("recommendation"),
+        "components": components or result.get("components"),
+        "smoothed": True,
+    })
+    if first.get("status"):
+        result["status"] = first["status"]
+        result["prediction"] = first.get("prediction", result.get("prediction"))
+
+    return result
 
 
 def _run_prediction(payload):
@@ -164,7 +231,7 @@ def predict_maintenance(machine_id):
         return _error_response("No complete sensor data available for this asset", 404)
 
     # Bangun payload sesuai feature_columns predictor mesin ini
-    payload = {col: getattr(latest_sensor, col, None) for col in asset_predictor.feature_columns}
+    payload = {col: _sensor_value(latest_sensor, col) for col in asset_predictor.feature_columns}
 
     try:
         result = asset_predictor.predict(payload)
@@ -181,6 +248,7 @@ def predict_maintenance(machine_id):
             required_features=result["required_features"],
         )
 
+    result = _apply_smoothed_snapshot(result, asset, latest_sensor)
     result.update({
         "asset_id": str(asset.id),
         "asset_name": asset.name,
@@ -276,6 +344,7 @@ def get_sensor_history(machine_id):
             "id": str(r.id),
             "timestamp": r.timestamp.isoformat(),
             "health_score": r.health_score,
+            "raw_health_score": r.raw_health_score,
             "failure_probability": r.failure_probability,
             "predicted_failure_days": r.predicted_failure_days,
         }
@@ -345,13 +414,25 @@ def add_sensor_data():
     # Pilih predictor sesuai machine_id asset (bukan selalu compressor) —
     # None kalau mesin ini belum punya model ML terdaftar (mis. forging).
     prediction = None
+    raw_history = {}
+    previous_status = AssetHealthStatus.objects(asset=asset).first()
     asset_predictor = get_predictor(asset.machine_id)
     if asset_predictor:
         try:
             payload = {field: data.get(field) for field in asset_predictor.feature_columns}
             result = asset_predictor.predict(payload)
             if result["ok"]:
+                # Haluskan dulu terhadap riwayat pembacaan sebelumnya, supaya
+                # satu spike sensor tidak menjatuhkan health score ke 0 dan
+                # tidak memicu alert palsu (lih. app/health_smoothing.py).
+                result, raw_history = smooth_prediction(
+                    result,
+                    previous_status,
+                    asset_predictor,
+                    now=sensor_data.timestamp,
+                )
                 sensor_data.health_score = result["health_score"]
+                sensor_data.raw_health_score = result.get("raw_health_score")
                 sensor_data.predicted_failure_days = result["predicted_days"]
                 sensor_data.failure_probability = result["failure_probability"]
                 prediction = result
@@ -380,6 +461,7 @@ def add_sensor_data():
             set__recommendation=prediction.get("recommendation"),
             set__due_date=prediction.get("due_date"),
             set__components=prediction.get("components") or {},
+            set__raw_history=raw_history or {},
             set__computed_at=sensor_data.timestamp,
             upsert=True,
         )

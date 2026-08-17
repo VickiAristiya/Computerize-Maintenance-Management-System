@@ -7,6 +7,10 @@ from pathlib import Path
 from abc import ABC, abstractmethod
 
 
+# Urutan tingkat risiko, dari paling ringan ke paling berat.
+RISK_ORDER = ["very_low", "low", "medium", "high", "critical"]
+
+
 class BasePredictor(ABC):
     """Interface wajib yang harus diimplementasikan setiap predictor."""
 
@@ -33,3 +37,22 @@ class BasePredictor(ABC):
         payload: dict berisi nilai sensor (key = nama fitur)
         Return: dict dengan minimal key 'ok' (bool)
         """
+
+    # ── Dipakai ulang oleh health_smoothing ────────────────────────────────
+    # Setelah health score dihaluskan, risk level & rekomendasi harus dihitung
+    # ulang dari nilai yang sudah halus supaya konsisten. Dua wrapper di bawah
+    # membungkus method internal tiap predictor (namanya sedikit berbeda antar
+    # file lama) supaya pemanggilnya tidak perlu tahu detail itu.
+
+    def build_risk(self, fault_prob: float) -> dict:
+        """Risk level, priority, predicted_days, due_date dari fault probability."""
+        return self._build_component_risk(fault_prob)
+
+    def build_recommendation(self, faulty_components: list, components: dict) -> str:
+        """Teks rekomendasi untuk daftar komponen yang terindikasi fault."""
+        builder = getattr(self, "_build_recommendation", None) or getattr(
+            self, "_build_aggregate_recommendation", None
+        )
+        if builder is None:
+            return ""
+        return builder(faulty_components, components)

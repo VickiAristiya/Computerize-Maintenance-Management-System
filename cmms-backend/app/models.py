@@ -253,7 +253,13 @@ class SensorData(db.Document):
     # Status kesehatan (0-1, dihitung oleh ML). Tanpa default — None berarti
     # belum ada prediksi ML untuk data ini (mis. mesin belum punya model
     # terdaftar), supaya tidak tercampur dengan hasil prediksi 100% asli.
+    # Nilai ini sudah DIHALUSKAN (lih. app/health_smoothing.py) supaya satu
+    # spike sensor tidak menjatuhkan health score ke 0 seketika.
     health_score = db.FloatField()
+
+    # Health score mentah langsung dari model, sebelum dihaluskan — disimpan
+    # untuk audit/perbandingan (kurva mentah vs kurva halus).
+    raw_health_score = db.FloatField()
     
     # Prediksi failure
     predicted_failure_days = db.FloatField()  # Hari sampai failure
@@ -309,6 +315,7 @@ class SensorData(db.Document):
             "vz": self.vz,
             "raw_readings": self.raw_readings,
             "health_score": self.health_score,
+            "raw_health_score": self.raw_health_score,
             "predicted_failure_days": self.predicted_failure_days,
             "failure_probability": self.failure_probability
         }
@@ -334,6 +341,10 @@ class AssetHealthStatus(db.Document):
     # Breakdown per-komponen (mis. bearing) — bentuknya sama dengan
     # CompressorPredictor.predict()["components"]
     components = db.DictField()
+
+    # State filter median milik health_smoothing: {komponen: [health mentah
+    # beberapa pembacaan terakhir]}. Internal, tidak dikirim ke front-end.
+    raw_history = db.DictField()
 
     computed_at = db.DateTimeField(default=datetime.datetime.utcnow)
 
