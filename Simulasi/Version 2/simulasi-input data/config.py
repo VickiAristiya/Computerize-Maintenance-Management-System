@@ -264,6 +264,7 @@ _PROFILE = PROFILES[_PROFILE_NAME]
 
 # Nama-nama di bawah ini yang dibaca app.py — bentuknya tetap sama seperti
 # sebelumnya, jadi app.py dan template tidak perlu diubah.
+PROFILE_NAME = _PROFILE_NAME
 MACHINE_ID = _PROFILE["machine_id"]
 DUMMY_ASSET = _PROFILE["asset"]
 SENSOR_FIELDS = _PROFILE["sensor_fields"]

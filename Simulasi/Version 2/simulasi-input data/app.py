@@ -15,22 +15,56 @@ Jalankan:
 Lalu buka http://127.0.0.1:5050
 """
 
+import os
+import sys
+
 import requests
 from flask import Flask, jsonify, render_template, request
 
-from config import CMMS_API_BASE, MACHINE_ID, DUMMY_ASSET, SENSOR_FIELDS, PRESETS
+# Profil mesin boleh diberikan langsung sebagai argumen:
+#     python app.py bubut
+# Disediakan karena env var MACHINE_PROFILE gampang terlewat — ia hilang tiap
+# kali terminal ditutup, dan kalau lupa disetel simulasi tetap jalan normal
+# tetapi menunjuk mesin lain (profil default: compressor). Harus dipasang
+# SEBELUM config diimpor, sebab config membaca env var itu saat diimpor.
+if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
+    os.environ["MACHINE_PROFILE"] = sys.argv[1].strip()
+
+from config import (  # noqa: E402  (impor sengaja setelah env var disetel)
+    CMMS_API_BASE, MACHINE_ID, DUMMY_ASSET, SENSOR_FIELDS, PRESETS, PROFILE_NAME,
+)
 
 app = Flask(__name__)
+
+# Backend CMMS yang di-hosting bisa "tidur" saat lama tidak dipakai, sehingga
+# permintaan PERTAMA setelah idle gagal atau lambat (cold start) — di tengah
+# presentasi itu tampil sebagai error meskipun servernya sebenarnya sehat.
+# Karena itu timeout dilonggarkan dan kegagalan koneksi dicoba ulang sekali.
+REQUEST_TIMEOUT = 25
+RETRY_ON_CONNECTION_ERROR = 1
+
+
+def _request(method, url, **kwargs):
+    """requests.request dengan satu kali percobaan ulang saat koneksi gagal."""
+    last_exc = None
+    for attempt in range(RETRY_ON_CONNECTION_ERROR + 1):
+        try:
+            return requests.request(method, url, timeout=REQUEST_TIMEOUT, **kwargs)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+            last_exc = exc
+            if attempt < RETRY_ON_CONNECTION_ERROR:
+                continue
+            raise last_exc
 
 
 def ensure_dummy_asset():
     """Pastikan aset dummy compressor sudah terdaftar di CMMS sebelum kirim data sensor."""
     try:
-        res = requests.get(f"{CMMS_API_BASE}/assets", timeout=10)
+        res = _request("GET", f"{CMMS_API_BASE}/assets")
         res.raise_for_status()
         if any(a.get("machine_id") == MACHINE_ID for a in res.json()):
             return None
-        create = requests.post(f"{CMMS_API_BASE}/assets", json=DUMMY_ASSET, timeout=10)
+        create = _request("POST", f"{CMMS_API_BASE}/assets", json=DUMMY_ASSET)
         create.raise_for_status()
         return None
     except requests.exceptions.RequestException as exc:
@@ -40,11 +74,11 @@ def ensure_dummy_asset():
 def send_sensor_data(payload):
     """Kirim satu paket data sensor ke /api/ml/sensor-data. Return error (None jika sukses)."""
     try:
-        res = requests.post(f"{CMMS_API_BASE}/ml/sensor-data", json=payload, timeout=10)
+        res = _request("POST", f"{CMMS_API_BASE}/ml/sensor-data", json=payload)
     except requests.exceptions.ConnectionError:
         return "Tidak dapat terhubung ke backend CMMS. Pastikan server Flask backend berjalan."
     except requests.exceptions.Timeout:
-        return "Request timeout. Server tidak merespons dalam 10 detik."
+        return f"Request timeout. Server tidak merespons dalam {REQUEST_TIMEOUT} detik."
     except requests.exceptions.RequestException as exc:
         return str(exc)
 
@@ -115,11 +149,14 @@ def index():
 def _forward(method, path, **kwargs):
     """Teruskan satu request ke backend CMMS. Return (body_dict, status_code)."""
     try:
-        res = requests.request(method, f"{CMMS_API_BASE}{path}", timeout=10, **kwargs)
+        res = _request(method, f"{CMMS_API_BASE}{path}", **kwargs)
     except requests.exceptions.ConnectionError:
         return {"error": "Tidak dapat terhubung ke backend CMMS."}, 502
     except requests.exceptions.Timeout:
-        return {"error": "Request timeout. Server tidak merespons dalam 10 detik."}, 504
+        return {
+            "error": f"Server tidak merespons dalam {REQUEST_TIMEOUT} detik. "
+                     "Coba geser slider sekali lagi."
+        }, 504
     except requests.exceptions.RequestException as exc:
         return {"error": str(exc)}, 502
 
@@ -162,4 +199,22 @@ def health_override():
 
 
 if __name__ == "__main__":
+    # Cetak profil yang sedang aktif. Tanpa ini, lupa menyetel MACHINE_PROFILE
+    # tidak terlihat sampai data terlanjur terkirim ke mesin yang salah —
+    # simulasi tetap jalan normal, hanya menunjuk mesin lain.
+    print()
+    print("=" * 62)
+    print(f"  Profil mesin : {PROFILE_NAME}")
+    print(f"  Machine ID   : {MACHINE_ID}  ({DUMMY_ASSET.get('name', '-')})")
+    print(f"  Backend CMMS : {CMMS_API_BASE}")
+    print("-" * 62)
+    print("  Form sensor  : http://127.0.0.1:5050/")
+    print("  Slider demo  : http://127.0.0.1:5050/health-demo")
+    print("=" * 62)
+    print("  Ganti mesin: hentikan (Ctrl+C), lalu jalankan ulang dengan")
+    print('    PowerShell : $env:MACHINE_PROFILE = "bubut"; python app.py')
+    print("    Git Bash   : MACHINE_PROFILE=bubut python app.py")
+    print("=" * 62)
+    print()
+
     app.run(host="0.0.0.0", port=5050, debug=True)
