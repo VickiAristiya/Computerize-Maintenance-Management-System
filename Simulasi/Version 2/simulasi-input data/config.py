@@ -1,8 +1,15 @@
 """
 Konfigurasi form simulasi input data sensor.
 
-Mendukung beberapa mesin lewat PROFILES. Pilih mesin yang mau disimulasikan
-dengan env var MACHINE_PROFILE (default: "compressor"), tanpa mengubah kode:
+Profil bawaan: "bubut" (BBT-001) — mesin yang dipakai untuk demo/sidang.
+Menjalankan `python app.py` tanpa embel-embel apa pun SELALU menunjuk BBT-001,
+tidak akan pernah nyasar ke compressor atau mesin lain.
+
+Mesin lain hanya terpilih kalau diminta secara SENGAJA, lewat argumen:
+
+    python app.py bor
+
+atau lewat env var MACHINE_PROFILE:
 
     # Windows PowerShell
     $env:MACHINE_PROFILE = "bor"; python app.py
@@ -253,7 +260,13 @@ PROFILES = {
 }
 
 
-_PROFILE_NAME = os.environ.get("MACHINE_PROFILE", "").strip() or "compressor"
+# Profil bawaan sengaja "bubut", bukan "compressor". Sebelumnya lupa menyetel
+# MACHINE_PROFILE membuat simulasi diam-diam menunjuk compressor — tampak jalan
+# normal, padahal data dan slider mengarah ke mesin yang salah. Dengan bawaan
+# ini, tidak menyetel apa pun berarti BBT-001.
+DEFAULT_PROFILE = "bubut"
+
+_PROFILE_NAME = os.environ.get("MACHINE_PROFILE", "").strip() or DEFAULT_PROFILE
 if _PROFILE_NAME not in PROFILES:
     raise SystemExit(
         f"MACHINE_PROFILE='{_PROFILE_NAME}' tidak dikenal. "

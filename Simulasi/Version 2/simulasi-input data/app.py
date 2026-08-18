@@ -32,6 +32,7 @@ if len(sys.argv) > 1 and not sys.argv[1].startswith("-"):
 
 from config import (  # noqa: E402  (impor sengaja setelah env var disetel)
     CMMS_API_BASE, MACHINE_ID, DUMMY_ASSET, SENSOR_FIELDS, PRESETS, PROFILE_NAME,
+    DEFAULT_PROFILE,
 )
 
 app = Flask(__name__)
@@ -203,18 +204,25 @@ if __name__ == "__main__":
     # tidak terlihat sampai data terlanjur terkirim ke mesin yang salah —
     # simulasi tetap jalan normal, hanya menunjuk mesin lain.
     print()
-    print("=" * 62)
+    print("=" * 64)
     print(f"  Profil mesin : {PROFILE_NAME}")
     print(f"  Machine ID   : {MACHINE_ID}  ({DUMMY_ASSET.get('name', '-')})")
     print(f"  Backend CMMS : {CMMS_API_BASE}")
-    print("-" * 62)
+    print("-" * 64)
     print("  Form sensor  : http://127.0.0.1:5050/")
     print("  Slider demo  : http://127.0.0.1:5050/health-demo")
-    print("=" * 62)
-    print("  Ganti mesin: hentikan (Ctrl+C), lalu jalankan ulang dengan")
-    print('    PowerShell : $env:MACHINE_PROFILE = "bubut"; python app.py')
-    print("    Git Bash   : MACHINE_PROFILE=bubut python app.py")
-    print("=" * 62)
+
+    if PROFILE_NAME != DEFAULT_PROFILE:
+        # Profil non-bawaan hanya bisa terjadi kalau diminta sengaja lewat
+        # argumen/env var. Tetap diberi peringatan mencolok supaya sisa setelan
+        # dari sesi sebelumnya tidak lolos tanpa disadari saat presentasi.
+        print("=" * 64)
+        print(f"  PERHATIAN: ini BUKAN profil bawaan ({DEFAULT_PROFILE}).")
+        print(f"  Data & slider akan mengarah ke {MACHINE_ID}, bukan mesin bubut.")
+        print("  Hentikan (Ctrl+C) lalu jalankan `python app.py` tanpa argumen")
+        print("  kalau yang Anda maksud mesin bubut.")
+
+    print("=" * 64)
     print()
 
     app.run(host="0.0.0.0", port=5050, debug=True)
