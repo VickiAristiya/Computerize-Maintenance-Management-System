@@ -61,6 +61,12 @@ MACHINES: dict[str, dict] = {
             "Mesin Bubut terindikasi fault — periksa getaran spindle, "
             "kesejajaran chuck, dan kondisi bearing headstock."
         ),
+        # Power meter 3 fasa di mesin bubut mengirim daya aktif sebagai
+        # "active_power_total_w", sedangkan model dilatih dengan kolom
+        # "active_power_w" (dari header CSV "Active Power Total W"). Tanpa alias
+        # ini satu field dianggap hilang dan seluruh prediksi ditolak — health
+        # score mesin bubut tidak pernah terisi meski datanya masuk.
+        "aliases": {"active_power_w": ["active_power_total_w"]},
     },
     #
     # Contoh entri baru — hapus komentar dan sesuaikan saat model mesin lain siap:
