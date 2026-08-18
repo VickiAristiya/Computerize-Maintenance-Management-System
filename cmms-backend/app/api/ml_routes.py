@@ -91,6 +91,24 @@ def _apply_field_aliases(data):
                 break
 
 
+class _PreOverrideView:
+    """Kondisi kesehatan mesin SEBELUM health score-nya di-override mode demo.
+
+    Dipakai sebagai acuan smoothing saat slider demo sedang menyala. Tanpa ini,
+    pembacaan sensor yang masuk akan dihaluskan terhadap angka slider — health
+    score pada riwayat sensor jadi ikut tertarik ke nilai buatan, padahal
+    riwayat itu harus tetap murni hasil model.
+
+    raw_history sengaja diambil apa adanya dari dokumen aslinya: mode demo tidak
+    pernah menyentuh field itu, jadi isinya masih riwayat pembacaan sensor asli.
+    """
+
+    def __init__(self, status):
+        self.components = (status.pre_override or {}).get("components") or {}
+        self.raw_history = status.raw_history or {}
+        self.computed_at = status.computed_at
+
+
 def _error_response(message, status_code=400, **extra):
     payload = {"error": message}
     payload.update(extra)
@@ -416,6 +434,21 @@ def add_sensor_data():
     prediction = None
     raw_history = {}
     previous_status = AssetHealthStatus.objects(asset=asset).first()
+
+    # Mode demo sedang aktif? Selama slider menyala, health score mesin ini
+    # dikunci pada nilai slider — data sensor yang masuk tetap DISIMPAN dan
+    # tetap diprediksi (riwayat sensor jujur apa adanya), tapi tidak boleh
+    # menimpa snapshot yang dibaca dashboard. Tanpa penguncian ini, sensor yang
+    # mengirim tiap beberapa detik akan menghapus nilai slider seketika.
+    demo_override_active = bool(previous_status and previous_status.overridden)
+
+    # Pembacaan ini dihaluskan terhadap kondisi SEBELUM override, bukan terhadap
+    # angka slider — supaya health score pada riwayat sensor tetap mencerminkan
+    # model, tidak ikut tertarik ke nilai buatan.
+    smoothing_base = previous_status
+    if demo_override_active:
+        smoothing_base = _PreOverrideView(previous_status)
+
     asset_predictor = get_predictor(asset.machine_id)
     if asset_predictor:
         try:
@@ -427,7 +460,7 @@ def add_sensor_data():
                 # tidak memicu alert palsu (lih. app/health_smoothing.py).
                 result, raw_history = smooth_prediction(
                     result,
-                    previous_status,
+                    smoothing_base,
                     asset_predictor,
                     now=sensor_data.timestamp,
                 )
@@ -447,7 +480,7 @@ def add_sensor_data():
     # --- Simpan snapshot kesehatan asset (dipakai dashboard/notifikasi) ---
     # Prediksi di atas sudah dihitung sekali di sini; simpan hasilnya supaya
     # endpoint dashboard tinggal baca, tidak perlu predictor.predict() lagi.
-    if prediction and prediction.get("ok"):
+    if prediction and prediction.get("ok") and not demo_override_active:
         AssetHealthStatus.objects(asset=asset).update_one(
             set__asset=asset,
             set__machine_id=asset.machine_id,
@@ -475,18 +508,26 @@ def add_sensor_data():
         "health_score": sensor_data.health_score,
         "risk_level": prediction.get("risk_level") if prediction else None,
     }
-    socketio.emit("sensor_data_update", update_payload)
+    # Selama mode demo aktif, dashboard sedang dikendalikan slider. Mengirim
+    # angka dari sensor ke sana hanya akan membuat tampilan berkedip-kedip
+    # antara nilai slider dan nilai model, jadi push-nya ditahan dulu.
+    if not demo_override_active:
+        socketio.emit("sensor_data_update", update_payload)
 
-    if prediction and prediction.get("ok") and prediction.get("risk_level") in ALERT_RISK_LEVELS:
-        socketio.emit("machine_alert", {
-            **update_payload,
-            "failure_probability": prediction.get("failure_probability"),
-            "predicted_days": prediction.get("predicted_days"),
-            "recommendation": prediction.get("recommendation"),
-        })
+        if prediction and prediction.get("ok") and prediction.get("risk_level") in ALERT_RISK_LEVELS:
+            socketio.emit("machine_alert", {
+                **update_payload,
+                "failure_probability": prediction.get("failure_probability"),
+                "predicted_days": prediction.get("predicted_days"),
+                "recommendation": prediction.get("recommendation"),
+            })
 
     return jsonify({
-        "message": "Sensor data added successfully",
+        "message": (
+            "Sensor data added, tetapi health score mesin sedang dikunci mode demo"
+            if demo_override_active else "Sensor data added successfully"
+        ),
+        "demo_override_active": demo_override_active,
         "sensor_data": sensor_data.to_json(),
         "prediction": prediction,
     }), 201

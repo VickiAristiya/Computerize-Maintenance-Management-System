@@ -122,7 +122,10 @@
     diperagakan seketika — tanpa menunggu smoothing backend yang membatasi
     perubahan health score per pembacaan sensor. Untuk memperagakan jalur ML yang
     sebenarnya, pakai <a class="back" href="/">form input sensor</a>.
-    Mematikan sakelar di bawah akan mengembalikan health score ke kondisi semula.
+    Selama sakelar menyala, health score mesin ini <b>dikunci</b> — data dari
+    sensor asli tetap masuk dan tetap diprediksi model, tetapi tidak menimpa
+    angka slider. Mematikan sakelar mengembalikan health score ke kondisi semula
+    dan menyerahkan kendali kembali ke sensor.
   </div>
 
   <div id="error" class="error" style="display:none"></div>
