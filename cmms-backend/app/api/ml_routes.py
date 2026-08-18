@@ -475,6 +475,19 @@ def add_sensor_data():
                 "warning": f"Sensor data saved, but ML prediction failed: {exc}",
             }
 
+    if demo_override_active and previous_status is not None:
+        # Halaman Monitoring Sensor menggambar kurva health dari health_score
+        # TIAP BARIS SensorData, bukan dari snapshot dashboard. Tanpa baris ini
+        # slider hanya menggerakkan notifikasi, sementara kurva di halaman itu
+        # tetap datar — persis kebalikan dari yang mau diperagakan.
+        #
+        # Jadi selama mode demo, baris yang masuk ikut memakai nilai slider.
+        # Nilai asli dari model TETAP tersimpan di raw_health_score, sehingga
+        # kondisi mesin yang sebenarnya tidak hilang dan tetap bisa diaudit.
+        sensor_data.health_score = previous_status.health_score
+        sensor_data.failure_probability = previous_status.failure_probability
+        sensor_data.predicted_failure_days = previous_status.predicted_days
+
     sensor_data.save()
 
     # --- Simpan snapshot kesehatan asset (dipakai dashboard/notifikasi) ---
@@ -508,19 +521,28 @@ def add_sensor_data():
         "health_score": sensor_data.health_score,
         "risk_level": prediction.get("risk_level") if prediction else None,
     }
-    # Selama mode demo aktif, dashboard sedang dikendalikan slider. Mengirim
-    # angka dari sensor ke sana hanya akan membuat tampilan berkedip-kedip
-    # antara nilai slider dan nilai model, jadi push-nya ditahan dulu.
-    if not demo_override_active:
-        socketio.emit("sensor_data_update", update_payload)
+    if demo_override_active and previous_status is not None:
+        # Angka yang dikirim harus ikut nilai slider, bukan nilai model —
+        # kalau tidak, halaman monitoring berkedip antara keduanya.
+        update_payload["health_score"] = previous_status.health_score
+        update_payload["risk_level"] = previous_status.risk_level
 
-        if prediction and prediction.get("ok") and prediction.get("risk_level") in ALERT_RISK_LEVELS:
-            socketio.emit("machine_alert", {
-                **update_payload,
-                "failure_probability": prediction.get("failure_probability"),
-                "predicted_days": prediction.get("predicted_days"),
-                "recommendation": prediction.get("recommendation"),
-            })
+    socketio.emit("sensor_data_update", update_payload)
+
+    # machine_alert sengaja TIDAK dikirim selama mode demo: slider sudah
+    # mengirimkannya sekali saat digeser, sedangkan sensor masuk tiap beberapa
+    # detik — tanpa penahanan ini alert akan meletup terus-menerus.
+    if (
+        not demo_override_active
+        and prediction and prediction.get("ok")
+        and prediction.get("risk_level") in ALERT_RISK_LEVELS
+    ):
+        socketio.emit("machine_alert", {
+            **update_payload,
+            "failure_probability": prediction.get("failure_probability"),
+            "predicted_days": prediction.get("predicted_days"),
+            "recommendation": prediction.get("recommendation"),
+        })
 
     return jsonify({
         "message": (

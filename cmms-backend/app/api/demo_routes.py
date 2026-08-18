@@ -22,13 +22,20 @@ tampilan, bukan jalur prediksi. Karena itu:
     bisa dibedakan dari hasil model;
   - isi snapshot sebelum di-override disimpan di `pre_override` dan
     dikembalikan utuh saat mode demo dimatikan;
-  - tidak ada baris SensorData yang ditulis, jadi riwayat sensor mesin tetap
-    bersih dan tidak tercemar angka buatan;
+  - endpoint ini tidak pernah membuat baris SensorData baru — nilai sensor
+    tidak dikarang;
   - selama override aktif, data sensor yang masuk TIDAK menimpa health score
-    (lih. ml_routes.add_sensor_data). Pembacaannya tetap disimpan dan tetap
-    diprediksi model seperti biasa, hanya snapshot dashboard-nya yang dikunci —
-    kalau tidak, sensor yang mengirim tiap beberapa detik akan menghapus nilai
-    slider seketika. Penguncian berakhir begitu mode demo dimatikan.
+    (lih. ml_routes.add_sensor_data): snapshot dashboard dikunci pada nilai
+    slider. Kalau tidak, sensor yang mengirim tiap beberapa detik akan
+    menghapus nilai slider seketika.
+  - baris sensor yang masuk selama override ikut memakai nilai slider pada
+    kolom health_score, supaya kurva di halaman Monitoring Sensor bergerak
+    seirama dengan dashboard. Hasil model yang sebenarnya untuk pembacaan itu
+    TETAP tersimpan di raw_health_score, jadi kondisi asli mesin tidak hilang
+    dan selisih keduanya bisa diperiksa kapan saja.
+
+Semua efek di atas berhenti begitu mode demo dimatikan: snapshot dikembalikan
+ke kondisi semula dan baris sensor berikutnya kembali memakai nilai model.
 
 Sakelar on/off ada di web simulasi, bukan di sini — backend hanya menyediakan
 endpointnya. Untuk mematikan fitur ini sepenuhnya di server, set env var
